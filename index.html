@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mariners Watch</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800&family=Barlow+Condensed:wght@300;400;600;700&family=Libre+Baskerville:ital@1&display=swap" rel="stylesheet" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body,#root{background:#03101f;min-height:100vh}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+const SEA_ID = 136;
+const API    = "https://statsapi.mlb.com/api/v1";
+const TZ     = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const TODAY  = () => new Date().toLocaleDateString("sv-SE", { timeZone: TZ });
+
+// ── Supabase (read-only cache for completed seasons) ─────────
+const SB_URL = "https://bvaryucxwnngacigqoeo.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2YXJ5dWN4d25uZ2FjaWdxb2VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NDQ1MjksImV4cCI6MjA4OTAyMDUyOX0.1Q4jkPWuDGwHtr-GgdzvS001LTZ-L8cfTEs5j9QEg-Y";
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+function isSeasonComplete(year) {
+  const now = new Date();
+  return year < now.getFullYear() || (year === now.getFullYear() && now.getMonth() >= 10);
+}
+
+function getDefaultYear() {
+  const m = new Date().getMonth() + 1;
+  return m <= 3 ? new Date().getFullYear() - 1 : new Date().getFullYear();
+}
+
+function getTodayCursorIdx(tl) {
+  if (!tl.length) return 0;
+  const today = TODAY();
+  let best = 0;
+  for (let i = 0; i < tl.length; i++) {
+    if (tl[i].date <= today) best = i; else break;
+  }
+  return best;
+}
+
+function fmtGameTime(isoStr) {
+  if (!isoStr) return "";
+  return new Date(isoStr).toLocaleTimeString("en-US", {
+    hour: "numeric", minute: "2-digit", timeZone: TZ, timeZoneName: "short",
+  });
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+const TEAMS_BY_YEAR = (y) => {
+  const athAbbr = y >= 2024 ? "ATH" : "OAK";
+  const base = [
+    { id: 136, abbr: "SEA", name: "Mariners",  color: "#00B5AC", sea: true },
+    { id: 133, abbr: athAbbr, name: "Athletics", color: "#3D8A3A" },
+    { id: 108, abbr: y >= 2005 ? "LAA" : y >= 1997 ? "ANA" : "CAL", name: "Angels",   color: "#C41E3A" },
+    { id: 140, abbr: "TEX", name: "Rangers",   color: "#3766B5" },
+  ];
+  if (y >= 2013) return [...base, { id: 117, abbr: "HOU", name: "Astros", color: "#E87722" }];
+  if (y >= 1994) return base;
+  return [...base,
+    { id: 142, abbr: "MIN", name: "Twins",     color: "#CE2F42" },
+    { id: 145, abbr: "CHW", name: "White Sox", color: "#909090" },
+    { id: 118, abbr: "KCR", name: "Royals",    color: "#6AAAD4" },
+  ];
+};
+
+const LORE = {
+  2025: "90-72, 1st in AL West. First division title since 2001. Cal Raleigh hit 60 home runs, breaking the major league records for a catcher and switch hitter. Lost the ALCS to Toronto in seven games.",
+  2024: "85-77, 2nd in AL West. Scott Servais fired in August with the team holding a division lead. Logan Gilbert led the staff with 200 strikeouts.",
+  2023: "88-74, 2nd in AL West. Missed the playoffs on the final day of the regular season. Julio Rodríguez hit 32 home runs.",
+  2022: "90-72, 2nd in AL West. Swept Toronto in the Wild Card round to end a 21-year playoff drought. Lost the ALDS to Houston 3-0.",
+  2021: "90-72, 2nd in AL West. First postseason appearance since 2001. Lost the AL Wild Card game to the Yankees 1-0.",
+  2020: "27-33, 3rd in AL West. COVID-shortened 60-game season. Kyle Lewis won AL Rookie of the Year.",
+  2019: "68-94, 5th in AL West. First year of a rebuild. Traded Edwin Encarnación, Jay Bruce, and others at the deadline.",
+  2018: "89-73, 3rd in AL West. James Paxton threw a no-hitter in Toronto on May 8. Missed the playoffs by three games.",
+  2017: "78-84, 3rd in AL West. Robinson Canó hit .280 with 23 home runs. Félix Hernández posted a 4.36 ERA.",
+  2016: "86-76, 2nd in AL West. Robinson Canó hit 39 home runs. Missed the playoffs by one game.",
+  2015: "76-86, 4th in AL West. Nelson Cruz hit 44 home runs, leading the American League. The team never contended.",
+  2014: "87-75, 2nd in AL West. Félix Hernández went 15-6 with a 2.14 ERA. Missed the playoffs despite the best rotation in the AL.",
+  2013: "71-91, 4th in AL West. Kyle Seager led the team with 22 home runs. The rebuild continued.",
+  2012: "75-87, 4th in AL West. Félix Hernández threw a perfect game against Tampa Bay on August 15.",
+  2011: "67-95, 4th in AL West. Dustin Ackley and Michael Pineda debuted. Ichiro hit .272, his lowest average as a Mariner.",
+  2010: "61-101, 4th in AL West. Félix Hernández won the AL Cy Young with a 13-12 record and 2.27 ERA on a last-place team.",
+  2009: "85-77, 3rd in AL West. Ichiro collected 225 hits, his ninth consecutive 200-hit season. Missed the playoffs.",
+  2008: "61-101, 4th in AL West. Lost 17 of their first 22 games. Erik Bedard, acquired for Adam Jones, pitched 81 innings before injury.",
+  2007: "88-74, 2nd in AL West. Ichiro had 238 hits. J.J. Putz saved 40 games. Missed the playoffs.",
+  2006: "78-84, 4th in AL West. Félix Hernández debuted the prior year and went 12-14 in his first full season at age 20.",
+  2005: "69-93, 4th in AL West. Ichiro hit .303 with 206 hits. The team traded Freddy García to the White Sox in June.",
+  2004: "63-99, 4th in AL West. Ichiro set the single-season hits record with 262, breaking George Sisler's 84-year-old mark.",
+  2003: "93-69, 2nd in AL West. Oakland won 96. Second place with 93 wins and no playoff berth.",
+  2002: "93-69, 3rd in AL West. Won 93 games for the second straight year. Both Oakland and Anaheim finished ahead.",
+  2001: "116-46, 1st in AL West. Tied the 1906 Cubs for the most wins in a single season. Ichiro won AL MVP and Rookie of the Year.",
+  2000: "91-71, 2nd in AL West. AL Wild Card. Alex Rodriguez hit 41 home runs in his final season before free agency.",
+  1999: "79-83, 3rd in AL West. Ken Griffey Jr. hit 48 home runs. He was traded to Cincinnati after the season.",
+  1998: "76-85, 3rd in AL West. Ken Griffey Jr. hit 56 home runs. Randy Johnson was traded to Houston at the deadline.",
+  1997: "90-72, 1st in AL West. Won the division title. Lost the ALDS to Baltimore 3-1. Randy Johnson went 20-4.",
+  1996: "85-76, 2nd in AL West. Alex Rodriguez hit .358 with 36 home runs at age 20. Missed the playoffs.",
+  1995: "79-66, 1st in AL West. Won the division in a one-game playoff against the Angels. Edgar's double off Jack McDowell in the ALDS. Lost the ALCS to Cleveland.",
+  1994: "49-63, 3rd in AL West. The players' strike ended the season on August 11. Ken Griffey Jr. had 40 home runs at the stoppage.",
+  1993: "82-80, 4th in AL West. First winning season in franchise history. Ken Griffey Jr. hit 45 home runs.",
+  1992: "64-98, 7th in AL West. Ken Griffey Jr. hit .308 with 27 home runs. The team lost 98 games around him.",
+  1991: "83-79, 5th in AL West. First season above .500 for the franchise. Ken Griffey Jr. and Edgar Martínez began to emerge.",
+  1990: "77-85, 5th in AL West. Ken Griffey Jr. hit .300 in his second season. The team improved by four wins.",
+  1989: "73-89, 6th in AL West. Ken Griffey Jr. debuted on April 3 and homered in his first Kingdome at-bat.",
+  1988: "68-93, 7th in AL West. Mark Langston struck out 235 batters. The franchise had never finished above .500.",
+  1987: "78-84, 4th in AL West. Mark Langston went 19-13. The best season in franchise history at the time.",
+  1986: "67-95, 7th in AL West. Mark Langston struck out 245 batters, second in the American League.",
+  1985: "74-88, 6th in AL West. Phil Bradley hit .300 with 26 home runs and 21 stolen bases.",
+  1984: "74-88, 5th in AL West. Alvin Davis won AL Rookie of the Year, hitting .284 with 27 home runs.",
+  1983: "60-102, 7th in AL West. Lost 102 games, the most in franchise history. Attendance fell below one million.",
+  1982: "76-86, 4th in AL West. Gaylord Perry won his 300th game on May 6 against the Yankees.",
+  1981: "44-65, 6th in AL West. Split season due to the players' strike. The Mariners did not qualify for the special postseason.",
+  1980: "59-103, 7th in AL West. Finished last for the fourth straight year. The team drew under a million fans.",
+  1979: "67-95, 6th in AL West. Bruce Bochte hit .316 and made the All-Star team. The Mariners' best individual season to date.",
+  1978: "56-104, 7th in AL West. Lost 104 games, the worst record in franchise history. Leon Roberts hit 22 home runs.",
+  1977: "64-98, 6th in AL West. The expansion Mariners played their first game April 6 at the Kingdome, losing 7-0 to the Angels.",
+};
+
+const PLAYOFF_LORE = {
+  2025: "Beat Detroit 3-2 in the ALDS. Jorge Polanco hit a walk-off single in the 15th inning of Game 5. Led the ALCS against Toronto 2-0 and 3-2 but lost Game 7 on a George Springer home run.",
+  2022: "Swept Toronto 2-0 in the Wild Card round, ending a 21-year playoff drought. Lost the ALDS to Houston 3-0.",
+  2021: "Lost the AL Wild Card game to the Yankees 1-0 in New York. First postseason appearance since 2001.",
+  2001: "Won the ALDS over Cleveland 3-2. Led the ALCS 2-1 against the Yankees, then lost three straight to end the season.",
+  2000: "Won the ALDS over the White Sox 3-0. Swept by the Yankees in the ALCS 4-2.",
+  1997: "Lost the ALDS to Baltimore 3-1. Randy Johnson started Games 1 and 3.",
+  1995: "Beat the Yankees 3-2 in the ALDS. Edgar Martínez doubled off Jack McDowell in the 11th inning of Game 5. Lost the ALCS to Cleveland 4-2.",
+};
+
+const PRE_SEASON = [
+  "The grounds crew is still painting the foul lines. Check back when it counts.",
+  "Pitchers and catchers have reported. The hot stove is cooling. We're almost there.",
+  "Spring training box scores don't count — and neither does optimism. Yet.",
+  "The infield dirt is freshly raked. No heartbreak has been committed here. Yet.",
+];
+
+const MOODS = [
+  { t: -65, label: "COMPLETE DESPAIR",   color: "#c05050" },
+  { t: -35, label: "RESIGNED TO FATE",   color: "#b07050" },
+  { t: -12, label: "DISAPPOINTED",       color: "#8a8060" },
+  { t:  12, label: "THE USUAL",          color: "#5a7070" },
+  { t:  35, label: "CAUTIOUSLY HOPEFUL", color: "#3a8878" },
+  { t:  65, label: "DARING TO DREAM",    color: "#00a090" },
+  { t: 100, label: "BELIEVE",            color: "#00B5AC" },
+];
+
+const ROUND_ORDER = { F: 0, D: 1, L: 2, W: 3 };
+const ROUND_NAMES = { F: "Wild Card", D: "Division Series", L: "LCS", W: "World Series" };
+
+// ── API ──────────────────────────────────────────────────────
+async function getTeamGames(teamId, year) {
+  if (isSeasonComplete(year)) {
+    const { data, error } = await sb.from("games").select("*")
+      .eq("season", year).eq("team_id", teamId).eq("game_type", "R")
+      .order("game_date");
+    if (error) throw new Error(error.message);
+    return data.map(g => ({
+      date: g.game_date, wins: g.wins, losses: g.losses,
+      result: g.result, score: g.score, oppScore: g.opp_score, opp: g.opp_abbr,
+    }));
+  }
+  const r = await fetch(`${API}/schedule?sportId=1&season=${year}&teamId=${teamId}&gameType=R`);
+  const d = await r.json();
+  return (d.dates ?? []).flatMap(({ games }) =>
+    games.filter(g => g.status.abstractGameState === "Final").map(g => {
+      const mine = g.teams.home.team.id === teamId ? g.teams.home : g.teams.away;
+      const them = g.teams.home.team.id === teamId ? g.teams.away : g.teams.home;
+      if (!mine.leagueRecord) return null;
+      return {
+        date: g.officialDate,
+        wins: mine.leagueRecord.wins, losses: mine.leagueRecord.losses,
+        result: mine.isWinner ? "W" : "L",
+        score: mine.score, oppScore: them.score, opp: them.team.name,
+      };
+    }).filter(Boolean)
+  ).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+async function getSeaFullSchedule(year) {
+  if (isSeasonComplete(year)) {
+    const { data, error } = await sb.from("games").select("*")
+      .eq("season", year).eq("team_id", SEA_ID).order("game_date");
+    if (error) throw new Error(error.message);
+    const byDate = {};
+    const playoffDates = [];
+    data.forEach(g => {
+      const isPost = g.game_type !== "R";
+      byDate[g.game_date] = {
+        date: g.game_date, pk: g.game_pk, isHome: g.is_home,
+        oppName: g.opp_abbr, oppAbbr: g.opp_abbr,
+        seaScore: g.score, oppScore: g.opp_score,
+        state: "Final", gameTime: null, isPostseason: isPost,
+        gameType: g.game_type, roundLabel: ROUND_NAMES[g.game_type] ?? null,
+      };
+      if (isPost && !playoffDates.includes(g.game_date)) playoffDates.push(g.game_date);
+    });
+    return { byDate, next: null, playoffDates: playoffDates.sort() };
+  }
+
+  // Current season — fetch from MLB API
+  const [regR, poR] = await Promise.all([
+    fetch(`${API}/schedule?sportId=1&season=${year}&teamId=${SEA_ID}&gameType=R`),
+    fetch(`${API}/schedule?sportId=1&season=${year}&teamId=${SEA_ID}&gameType=F,D,L,W`),
+  ]);
+  const [regD, poD] = await Promise.all([regR.json(), poR.json()]);
+
+  function parseGames(apiDates, isPostseason) {
+    return (apiDates ?? []).flatMap(({ games }) =>
+      games.map(g => {
+        const isHome  = g.teams.home.team.id === SEA_ID;
+        const seaSide = isHome ? g.teams.home : g.teams.away;
+        const oppSide = isHome ? g.teams.away : g.teams.home;
+        return {
+          date:        g.officialDate,
+          pk:          g.gamePk,
+          isHome,
+          oppName:     oppSide.team.name,
+          oppAbbr:     oppSide.team.abbreviation,
+          seaScore:    seaSide.score,
+          oppScore:    oppSide.score,
+          state:       g.status.abstractGameState,
+          gameTime:    g.gameDate,
+          isPostseason,
+          gameType:    g.gameType,
+          roundLabel:  ROUND_NAMES[g.gameType] ?? null,
+        };
+      })
+    ).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  const regGames = parseGames(regD.dates, false);
+  const poGames  = parseGames(poD.dates, true);
+  const allGames = [...regGames, ...poGames].sort((a, b) => a.date.localeCompare(b.date));
+
+  const byDate = {};
+  allGames.forEach(g => { byDate[g.date] = g; });
+
+  const today = TODAY();
+  const next  = regGames.find(g => g.date >= today && g.state === "Preview") ?? null;
+  const playoffDates = poGames.map(g => g.date).filter((d, i, a) => a.indexOf(d) === i).sort();
+  return { byDate, next, playoffDates };
+}
+
+async function getPlayoffGames(teamId, year) {
+  try {
+    let games;
+    if (isSeasonComplete(year)) {
+      const { data, error } = await sb.from("games").select("*")
+        .eq("season", year).eq("team_id", teamId).neq("game_type", "R")
+        .order("game_date");
+      if (error) throw new Error(error.message);
+      games = (data ?? []).map(g => ({
+        date: g.game_date, gameType: g.game_type, result: g.result,
+        score: g.score, oppScore: g.opp_score, opp: g.opp_abbr,
+      }));
+    } else {
+      const r = await fetch(`${API}/schedule?sportId=1&season=${year}&teamId=${teamId}&gameType=F,D,L,W`);
+      const d = await r.json();
+      games = (d.dates ?? []).flatMap(({ games }) =>
+        games.filter(g => g.status.abstractGameState === "Final").map(g => {
+          const mine = g.teams.home.team.id === teamId ? g.teams.home : g.teams.away;
+          const them = g.teams.home.team.id === teamId ? g.teams.away : g.teams.home;
+          return { date: g.officialDate, gameType: g.gameType, result: mine.isWinner ? "W" : "L", score: mine.score, oppScore: them.score, opp: them.team.name };
+        })
+      ).sort((a, b) => a.date.localeCompare(b.date));
+    }
+    if (!games.length) return [];
+    const map = {};
+    games.forEach(g => {
+      if (!map[g.gameType]) map[g.gameType] = { gameType: g.gameType, round: ROUND_NAMES[g.gameType], games: [], opp: g.opp };
+      map[g.gameType].games.push(g);
+    });
+    return Object.values(map)
+      .sort((a, b) => (ROUND_ORDER[a.gameType] ?? 9) - (ROUND_ORDER[b.gameType] ?? 9))
+      .map(s => ({ ...s, wins: s.games.filter(g => g.result === "W").length, losses: s.games.filter(g => g.result === "L").length, advanced: s.games.at(-1)?.result === "W", eliminated: s.games.at(-1)?.result === "L" }));
+  } catch { return []; }
+}
+
+async function getLinescore(pk) {
+  const r = await fetch(`${API}/game/${pk}/linescore`);
+  return r.json();
+}
+
+function buildTimeline(gamesByTeam) {
+  const ids   = Object.keys(gamesByTeam).map(Number);
+  const dates = [...new Set(Object.values(gamesByTeam).flat().map(g => g.date))].sort();
+  const rec   = Object.fromEntries(ids.map(id => [id, { w: 0, l: 0, last: null }]));
+  const tl    = [];
+  for (const date of dates) {
+    let hit = false;
+    ids.forEach(id => {
+      const gs = gamesByTeam[id]?.filter(g => g.date === date);
+      if (gs?.length) { const g = gs.at(-1); rec[id] = { w: g.wins, l: g.losses, last: g.result }; hit = true; }
+    });
+    if (!hit) continue;
+    let lW = 0, lL = 999;
+    ids.forEach(id => { if (rec[id].w > lW || (rec[id].w === lW && rec[id].l < lL)) { lW = rec[id].w; lL = rec[id].l; } });
+    const standings = Object.fromEntries(ids.map(id => {
+      const { w, l, last } = rec[id];
+      return [id, { w, l, last, gb: Math.max(0, ((lW - w) + (l - lL)) / 2), pct: (w + l) > 0 ? w / (w + l) : 0 }];
+    }));
+    tl.push({ date, standings });
+  }
+  return tl;
+}
+
+function calcMood(sea, idx, total, recent, playoffRuns) {
+  if (!sea || sea.w + sea.l < 5) return 0;
+  const thru = idx / Math.max(1, total);
+  let m = (sea.w / (sea.w + sea.l) - 0.5) * 180;
+  m -= Math.min(sea.gb * (2 + thru * 8), 75);
+  if (recent?.length) m += (recent.filter(r => r === "W").length / recent.length - 0.5) * 36;
+  if (thru > 0.75 && sea.gb < 2)  m += 28;
+  if (thru > 0.80 && sea.gb > 12) m -= 22;
+  if (idx >= total - 1 && playoffRuns?.length) {
+    const last = playoffRuns.at(-1);
+    if (last.eliminated) { m -= ({ F: 20, D: 35, L: 55, W: 80 }[last.gameType] ?? 20); if (last.gameType === "L" && last.wins >= 2) m -= 15; }
+    if (!last.eliminated) m = Math.min(100, m + 50);
+  }
+  return Math.max(-100, Math.min(100, m));
+}
+
+function smoothSvgPath(pts, t = 0.35) {
+  if (!pts.length) return "";
+  if (pts.length === 1) return `M${pts[0].x},${pts[0].y}`;
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+    d += ` C${(p1.x + (p2.x - p0.x) * t).toFixed(1)},${(p1.y + (p2.y - p0.y) * t).toFixed(1)} ${(p2.x - (p3.x - p1.x) * t).toFixed(1)},${(p2.y - (p3.y - p1.y) * t).toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+// ── CSS ──────────────────────────────────────────────────────
+const F = "'Exo 2',sans-serif";
+const CSS = `
+*{box-sizing:border-box;margin:0;padding:0}
+body,#root{background:#03101f;min-height:100vh}
+.root{min-height:100vh;font-family:'Barlow Condensed',sans-serif;color:#cce0f0;background:radial-gradient(ellipse at 15% 10%,rgba(0,93,93,.15) 0%,transparent 55%),radial-gradient(ellipse at 85% 85%,rgba(12,44,86,.25) 0%,transparent 55%),#03101f;display:flex;flex-direction:column}
+.hdr{display:flex;align-items:flex-end;justify-content:space-between;padding:24px 32px 16px;border-bottom:1px solid rgba(0,181,172,.15);flex-wrap:wrap;gap:14px}
+.title{font-family:${F};font-weight:800;font-size:54px;letter-spacing:1px;color:#00B5AC;line-height:1;text-shadow:0 0 60px rgba(0,181,172,.2);text-transform:uppercase}
+.sub{font-family:'Libre Baskerville',serif;font-style:italic;font-size:12px;color:#2e5060;margin-top:5px;letter-spacing:1px}
+.yr-wrap{display:flex;align-items:center;gap:10px}
+.yr-lbl{font-size:10px;letter-spacing:3px;color:#1e3a4e;font-family:'Barlow Condensed',sans-serif}
+.yr-sel{background:rgba(0,181,172,.08);border:1px solid rgba(0,181,172,.25);color:#00B5AC;font-family:${F};font-weight:800;font-size:32px;letter-spacing:0;padding:2px 14px;cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;transition:all .2s}
+.yr-sel:hover{background:rgba(0,181,172,.16);border-color:rgba(0,181,172,.5)}
+.yr-sel option{background:#04101f;color:#00B5AC}
+.body{padding:18px 32px 0;max-width:1100px;margin:0 auto;width:100%;flex:1}
+.game-card{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;margin-bottom:14px;background:rgba(12,44,86,.4);border:1px solid rgba(0,181,172,.2);border-left:3px solid #00B5AC;flex-wrap:wrap;gap:10px}
+.game-left{min-width:0;flex:1}
+.game-status{font-size:9px;letter-spacing:3px;color:#00B5AC;margin-bottom:2px;font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase}
+.game-matchup{font-family:${F};font-weight:700;font-size:21px;letter-spacing:.3px;text-transform:uppercase}
+.game-sub{font-size:10px;color:#2a4a5a;letter-spacing:1px;margin-top:2px;font-family:'Barlow Condensed',sans-serif}
+.game-nogame{font-family:'Libre Baskerville',serif;font-style:italic;font-size:14px;color:#2a4060;padding:4px 0}
+.game-next{font-size:11px;color:#243840;letter-spacing:.3px;font-family:'Barlow Condensed',sans-serif;margin-top:3px}
+.game-next b{color:#3a6570;font-weight:600}
+.game-score{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.sc-t{text-align:center;min-width:44px}
+.sc-abbr{font-size:9px;letter-spacing:2px;color:#2a4a5a;font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;display:block;height:14px}
+.sc-num{font-family:${F};font-weight:800;font-size:48px;line-height:1;color:#c8dce8}
+.sc-num.sea{color:#00B5AC}
+.sc-vs{font-family:${F};font-weight:700;font-size:20px;color:#1a2a38;align-self:center;margin-top:14px}
+.lore{font-family:'Libre Baskerville',serif;font-style:italic;font-size:13px;color:#a07040;padding:10px 16px;margin-bottom:14px;background:rgba(244,145,30,.05);border:1px solid rgba(244,145,30,.15);border-left:3px solid rgba(244,145,30,.45)}
+.mood-section{margin-bottom:16px}
+.mood-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px;flex-wrap:wrap;gap:6px}
+.st{font-family:${F};font-weight:700;font-size:11px;letter-spacing:3px;color:#2e4e64;text-transform:uppercase}
+.mood-state{display:flex;align-items:center;gap:7px}
+.mood-txt{font-family:${F};font-weight:700;font-size:15px;letter-spacing:.5px;transition:color .5s;text-transform:uppercase}
+.mood-bar{height:14px;position:relative;overflow:hidden;background:rgba(2,9,18,.9);border:1px solid rgba(0,181,172,.12);border-radius:2px}
+.mood-grad{position:absolute;inset:0;background:linear-gradient(to right,#3a0808 0%,#6a2020 18%,#5a4020 35%,#1a2a30 50%,#0a3a30 65%,#005a50 82%,#007a70 100%);opacity:.8}
+.mood-needle{position:absolute;top:0;bottom:0;width:2px;background:rgba(255,255,255,.9);box-shadow:0 0 6px rgba(255,255,255,.45);transform:translateX(-1px);transition:left .8s cubic-bezier(.34,1.56,.64,1)}
+.mood-labels{display:flex;justify-content:space-between;margin-top:4px;padding:0 1px}
+.ml{font-size:8px;letter-spacing:.5px;color:#243545;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
+.po-wrap{margin:16px 0;border:1px solid rgba(255,200,50,.15);background:rgba(0,0,0,.5)}
+.po-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 16px 7px;border-bottom:1px solid rgba(255,200,50,.1);flex-wrap:wrap;gap:8px}
+.po-title{font-family:${F};font-weight:700;font-size:12px;letter-spacing:3px;color:#c8a840;text-transform:uppercase}
+.po-body{padding:4px 0}
+.po-series{display:flex;align-items:center;padding:7px 16px;border-bottom:1px solid rgba(255,255,255,.03);gap:12px;flex-wrap:wrap}
+.po-series:last-child{border-bottom:none}
+.po-round{font-size:9px;letter-spacing:3px;color:#6a6040;width:120px;flex-shrink:0;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
+.po-opp{font-family:${F};font-weight:700;font-size:15px;letter-spacing:.3px;color:#9a8860;min-width:160px;text-transform:uppercase}
+.po-games{display:flex;gap:4px;flex:1;flex-wrap:wrap}
+.po-g{width:18px;height:18px;border-radius:2px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif}
+.po-g.w{background:rgba(0,181,172,.3);color:#00B5AC;border:1px solid rgba(0,181,172,.4)}
+.po-g.l{background:rgba(140,40,40,.3);color:#c06060;border:1px solid rgba(140,40,40,.4)}
+.po-result{font-family:${F};font-weight:700;font-size:12px;letter-spacing:.5px;padding:3px 8px;flex-shrink:0;text-transform:uppercase}
+.po-result.won{color:#00B5AC;background:rgba(0,181,172,.1);border:1px solid rgba(0,181,172,.3)}
+.po-result.lost{color:#c05050;background:rgba(160,40,40,.1);border:1px solid rgba(160,40,40,.3)}
+.po-result.champ{color:#c8a840;background:rgba(200,168,64,.1);border:1px solid rgba(200,168,64,.4)}
+.po-lore{font-family:'Libre Baskerville',serif;font-style:italic;font-size:12px;color:#7a6030;padding:10px 16px;border-top:1px solid rgba(255,200,50,.08);background:rgba(255,200,50,.02)}
+.sh{display:flex;align-items:baseline;justify-content:space-between;margin:14px 0 7px;flex-wrap:wrap;gap:6px}
+.shint{font-family:'Libre Baskerville',serif;font-style:italic;font-size:11px;color:#1e3040}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:7px}
+.leg{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:1px;font-family:'Barlow Condensed',sans-serif}
+.ll{width:20px;height:3px;border-radius:2px}
+.chart-wrap{background:rgba(2,9,18,.9);border:1px solid rgba(0,181,172,.1);min-height:240px;position:relative;overflow:hidden}
+.drag-hint{text-align:center;font-size:10px;color:#1a2e3a;font-style:italic;font-family:'Libre Baskerville',serif;padding:3px 0 5px}
+.err{padding:30px;text-align:center;font-style:italic;font-family:'Libre Baskerville',serif;font-size:13px}
+.loader{display:flex;justify-content:center;align-items:center;height:240px;gap:12px;flex-direction:column}
+.ldots{display:flex;gap:8px}
+.ld{width:8px;height:8px;border-radius:50%;background:#00B5AC;animation:bpulse 1.2s ease-in-out infinite}
+.ld:nth-child(2){animation-delay:.2s}.ld:nth-child(3){animation-delay:.4s}
+@keyframes bpulse{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#e04040;margin-right:5px;vertical-align:middle;animation:livepulse 1.5s ease-in-out infinite}
+@keyframes livepulse{0%,100%{opacity:.4}50%{opacity:1}}
+.info-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.panel{background:rgba(2,9,18,.8);border:1px solid rgba(0,181,172,.1);padding:14px 16px}
+.plbl{font-size:9px;letter-spacing:3px;color:#1e3a4e;margin-bottom:10px;font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase}
+.srow{display:flex;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03);gap:8px}
+.srow:last-child{border-bottom:none}
+.sea-row{background:rgba(0,181,172,.07);margin:0 -16px;padding:6px 16px}
+.srk{font-size:10px;color:#1e3040;width:12px;flex-shrink:0}
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sabb{font-family:${F};font-weight:700;font-size:17px;width:36px;letter-spacing:.3px;flex-shrink:0;text-transform:uppercase}
+.swl{flex:1;font-size:14px;color:#5a7a90}
+.sgb{font-size:14px;font-weight:600;color:#2e4a60;width:36px;text-align:right;flex-shrink:0}
+.sgb.lead{color:#E87722}.sgb.seagb{color:#00B5AC}
+.spct{font-size:12px;color:#2a3e50;width:40px;text-align:right;flex-shrink:0}
+.big-rec{font-family:${F};font-weight:800;font-size:52px;color:#00B5AC;line-height:1;letter-spacing:0}
+.meta-row{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
+.mb-lbl{font-size:9px;letter-spacing:2px;color:#1e3a4e;margin-bottom:3px;font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase}
+.mb-val{font-family:${F};font-weight:700;font-size:19px;letter-spacing:0;text-transform:uppercase}
+.streak{display:flex;gap:3px;margin-top:8px;flex-wrap:wrap}
+.sg{width:16px;height:16px;border-radius:2px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sg.w{background:rgba(0,181,172,.3);color:#00B5AC}
+.sg.l{background:rgba(180,60,60,.25);color:#c06060}
+.missed-po{padding:10px 0;font-size:12px;color:#2a3a4a;font-family:'Libre Baskerville',serif;font-style:italic}
+footer{margin-top:36px;padding:16px 32px;border-top:1px solid rgba(0,181,172,.08);text-align:center;font-size:11px;color:#1a2e3a;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;line-height:1.8}
+footer a{color:#254555;text-decoration:none;border-bottom:1px solid rgba(0,181,172,.18);transition:color .2s,border-color .2s}
+footer a:hover{color:#00B5AC;border-color:#00B5AC}
+@media(max-width:640px){.info-row{grid-template-columns:1fr}.title{font-size:38px}.body{padding:14px 18px 0}.po-round,.po-opp{width:auto}}
+`;
+
+// ── Chart ─────────────────────────────────────────────────────
+function Chart({ timeline, teams, cursor, onCursor }) {
+  const svgRef   = useRef(null);
+  const dragging = useRef(false);
+  const P = { t: 16, r: 18, b: 30, l: 58 };
+  const W = 900, H = 240, iW = W - P.l - P.r, iH = H - P.t - P.b;
+
+  const maxGB = useMemo(() => {
+    let m = 5;
+    timeline.forEach(d => Object.values(d.standings).forEach(s => { if (s.gb > m) m = s.gb; }));
+    return Math.ceil(m / 5) * 5;
+  }, [timeline]);
+
+  const xs = useCallback(i  => P.l + (i / Math.max(1, timeline.length - 1)) * iW, [timeline.length, iW]);
+  const ys = useCallback(gb => P.t + (gb / maxGB) * iH, [maxGB, iH]);
+
+  const paths = useMemo(() => teams.map(t => ({
+    ...t,
+    d: smoothSvgPath(
+      timeline.map((pt, i) => { const s = pt.standings[t.id]; return s ? { x: xs(i), y: ys(s.gb) } : null; }).filter(Boolean)
+    ),
+  })), [timeline, teams, xs, ys]);
+
+  const monthTicks = useMemo(() => {
+    const seen = new Set();
+    return timeline.map((pt, i) => {
+      const m = pt.date.slice(5, 7);
+      if (seen.has(m)) return null;
+      seen.add(m);
+      return { i, label: ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+m] };
+    }).filter(Boolean);
+  }, [timeline]);
+
+  const getIdx = useCallback((cx) => {
+    if (!svgRef.current) return 0;
+    const rect = svgRef.current.getBoundingClientRect();
+    const sx = ((cx - rect.left) / rect.width) * W;
+    return Math.max(0, Math.min(timeline.length - 1, Math.round(((sx - P.l) / iW) * (timeline.length - 1))));
+  }, [timeline.length, iW]);
+
+  const onDown = e => { dragging.current = true; svgRef.current?.setPointerCapture(e.pointerId); onCursor(getIdx(e.clientX)); };
+  const onMove = e => { if (dragging.current) onCursor(getIdx(e.clientX)); };
+  const onUp   = () => { dragging.current = false; };
+
+  const cursorX = xs(cursor);
+  const seaGb   = timeline[cursor]?.standings[SEA_ID]?.gb ?? 0;
+  const gbTicks = Array.from({ length: maxGB / 5 + 1 }, (_, i) => i * 5);
+
+  return (
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`}
+      style={{ width: "100%", display: "block", cursor: "crosshair", userSelect: "none" }}
+      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>
+      <rect x={P.l} y={P.t} width={iW} height={ys(3) - P.t} fill="rgba(0,181,172,.035)" />
+      {gbTicks.map(gb => (
+        <g key={gb}>
+          <line x1={P.l} y1={ys(gb)} x2={W - P.r} y2={ys(gb)}
+            stroke={gb === 0 ? "rgba(0,181,172,.2)" : "rgba(255,255,255,.028)"} strokeWidth={gb === 0 ? 1.5 : 1} />
+          <text x={P.l - 8} y={ys(gb) + 4} textAnchor="end"
+            fill={gb === 0 ? "rgba(0,181,172,.55)" : "rgba(80,130,160,.4)"} fontSize={9.5} fontFamily="Barlow Condensed,sans-serif">{gb}</text>
+        </g>
+      ))}
+      <text x={11} y={P.t + iH / 2} textAnchor="middle" fill="rgba(55,95,115,.45)" fontSize={8}
+        fontFamily="Barlow Condensed,sans-serif" letterSpacing={1.5}
+        transform={`rotate(-90, 11, ${P.t + iH / 2})`}>GAMES BACK</text>
+      {monthTicks.map(({ i, label }) => (
+        <text key={i} x={xs(i)} y={H - 4} textAnchor="middle"
+          fill="rgba(75,115,145,.5)" fontSize={9} fontFamily="Barlow Condensed,sans-serif" letterSpacing={1}>{label}</text>
+      ))}
+      {paths.map(t => t.d && (
+        <path key={t.id} d={t.d} fill="none" stroke={t.color}
+          strokeWidth={t.sea ? 2.6 : 1.4} strokeOpacity={t.sea ? 1 : 0.44}
+          strokeLinecap="round" strokeLinejoin="round" />
+      ))}
+      <circle cx={cursorX} cy={ys(seaGb)} r={5} fill="#00B5AC" stroke="#03101f" strokeWidth={2.5} />
+      <line x1={cursorX} y1={P.t} x2={cursorX} y2={H - P.b}
+        stroke="rgba(232,119,34,.5)" strokeWidth={1} strokeDasharray="4 3" />
+    </svg>
+  );
+}
+
+// ── Game Card ─────────────────────────────────────────────────
+function GameCard({ game, nextGame, cursorDate, linescore }) {
+  const today   = TODAY();
+  const isToday = cursorDate === today;
+
+  const isFinal   = game?.state === "Final";
+  const isLive    = game?.state === "Live";
+  const isPreview = game?.state === "Preview";
+  const showScore = (isFinal || isLive) && game != null;
+
+  let statusLabel = isToday ? "TODAY" : fmtDate(cursorDate);
+  if (game) {
+    if (isToday && isLive)                  statusLabel = null; // handled with JSX below
+    else if (isToday && isFinal)            statusLabel = "FINAL · TODAY";
+    else if (isToday && isPreview)          statusLabel = "TODAY";
+    else if (isFinal && game.isPostseason)  statusLabel = `FINAL · ${game.roundLabel ?? "POSTSEASON"} · ${fmtDate(cursorDate)}`;
+    else if (isFinal)                       statusLabel = `FINAL · ${fmtDate(cursorDate)}`;
+    else                                    statusLabel = fmtDate(cursorDate);
+  }
+
+  const inn = game && isLive && linescore
+    ? `${linescore.inningState ?? ""} ${linescore.currentInningOrdinal ?? ""}`.trim()
+    : game && isPreview ? fmtGameTime(game.gameTime)
+    : "";
+
+  // Score values — fall back to placeholders so the block always takes up space
+  const seaScore = showScore ? (game.seaScore ?? "—") : "—";
+  const oppScore = showScore ? (game.oppScore ?? "—") : "—";
+  const oppAbbr  = game?.oppAbbr || "OPP";
+
+  return (
+    <div className="game-card">
+      <div className="game-left">
+        <div className="game-status">{statusLabel === null ? <><span className="live-dot" />LIVE</> : statusLabel}</div>
+        {game
+          ? <div className="game-matchup">{game.isHome ? `vs ${game.oppName}` : `@ ${game.oppName}`}</div>
+          : <div className="game-nogame">No game{isToday ? " today." : "."}</div>
+        }
+        {inn && <div className="game-sub">{inn}</div>}
+        {!game && nextGame && (
+          <div className="game-next">
+            Next up: <b>{nextGame.isHome ? "vs" : "@"} {nextGame.oppName}</b>
+            {" · "}{fmtDate(nextGame.date)}{" · "}{fmtGameTime(nextGame.gameTime)}
+          </div>
+        )}
+        {game && isToday && nextGame && nextGame.date !== cursorDate && (
+          <div className="game-next">
+            Next: <b>{nextGame.isHome ? "vs" : "@"} {nextGame.oppName}</b>
+            {" · "}{fmtDate(nextGame.date)}
+          </div>
+        )}
+      </div>
+      {/* Always render score block — visibility:hidden on no-score days keeps height stable */}
+      <div className="game-score" style={{ visibility: showScore ? "visible" : "hidden" }}>
+        <div className="sc-t">
+          <div className="sc-abbr" style={{ color: "#00B5AC" }}>SEA</div>
+          <div className="sc-num sea">{seaScore}</div>
+        </div>
+        <div className="sc-vs">·</div>
+        <div className="sc-t">
+          <div className="sc-abbr">{oppAbbr}</div>
+          <div className="sc-num">{oppScore}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Mood Meter ────────────────────────────────────────────────
+function MoodMeter({ mood, zone }) {
+  const pct = ((mood + 100) / 2).toFixed(2);
+  return (
+    <div className="mood-section">
+      <div className="mood-header">
+        <span className="st">Fan Feelings Meter</span>
+        <div className="mood-state">
+          <span className="mood-txt" style={{ color: zone.color }}>{zone.label}</span>
+        </div>
+      </div>
+      <div className="mood-bar">
+        <div className="mood-grad" />
+        <div className="mood-needle" style={{ left: `${pct}%` }} />
+      </div>
+      <div className="mood-labels">
+        {["DESPAIR","RESIGNED","MEH","HOPEFUL","BELIEVE"].map((l, i) => <span key={i} className="ml">{l}</span>)}
+      </div>
+    </div>
+  );
+}
+
+// ── Standings ─────────────────────────────────────────────────
+function Standings({ sorted, date }) {
+  const [y, m, d] = date.split("-").map(Number);
+  const label = new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  return (
+    <div className="panel">
+      <div className="plbl">AL West · {label}</div>
+      {sorted.map((t, i) => (
+        <div key={t.id} className={`srow${t.sea ? " sea-row" : ""}`}>
+          <span className="srk">{i + 1}</span>
+          <span className="sdot" style={{ background: t.color }} />
+          <span className="sabb" style={{ color: t.sea ? t.color : "#c8dce8" }}>{t.abbr}</span>
+          <span className="swl">{t.w}–{t.l}</span>
+          <span className={`sgb${i === 0 ? " lead" : t.sea ? " seagb" : ""}`}>
+            {i === 0 ? "—" : t.gb % 1 === 0 ? t.gb : t.gb.toFixed(1)}
+          </span>
+          <span className="spct">{t.pct.toFixed(3).replace(/^0/, "")}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Season Record ─────────────────────────────────────────────
+function SeaBox({ sea, rank, recent }) {
+  if (!sea) return null;
+  const { w, l, gb, pct } = sea;
+  const total = w + l;
+  const proj  = total > 0 ? Math.round((w / total) * 162) : 81;
+  const gbColor = gb === 0 ? "#00B5AC" : gb < 5 ? "#b8d0e8" : gb < 12 ? "#b88050" : "#b05050";
+  const suffix  = (["", "st", "nd", "rd"])[rank] || "th";
+  return (
+    <div className="panel">
+      <div className="plbl">Season Record</div>
+      <div className="big-rec">{w}–{l}</div>
+      <div className="meta-row">
+        <div><div className="mb-lbl">Win Pct</div><div className="mb-val" style={{ color: "#7aa0b8" }}>{pct.toFixed(3).replace(/^0/, "")}</div></div>
+        <div><div className="mb-lbl">{gb === 0 ? "Division" : "Games Back"}</div><div className="mb-val" style={{ color: gbColor }}>{gb === 0 ? "1st" : gb % 1 === 0 ? String(gb) : gb.toFixed(1)}</div></div>
+        <div><div className="mb-lbl">Div Rank</div><div className="mb-val" style={{ color: rank === 1 ? "#00B5AC" : "#6a8090" }}>{rank}{suffix}</div></div>
+        <div><div className="mb-lbl">Proj Wins</div><div className="mb-val" style={{ color: proj >= 90 ? "#6aaa80" : proj >= 81 ? "#8090a0" : "#a07060" }}>{proj}</div></div>
+      </div>
+      {recent.length > 0 && (
+        <div>
+          <div className="mb-lbl" style={{ marginTop: 10 }}>Last {recent.length}</div>
+          <div className="streak">{recent.map((r, i) => <div key={i} className={`sg ${r === "W" ? "w" : "l"}`}>{r}</div>)}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Playoff Panel ─────────────────────────────────────────────
+function PlayoffPanel({ runs, year, madePlayoffs }) {
+  if (!madePlayoffs && !runs.length) return <div className="missed-po">Did not qualify for the postseason.</div>;
+  const champion = runs.length && !runs.at(-1).eliminated;
+  return (
+    <div className="po-wrap">
+      <div className="po-hdr">
+        <span className="po-title">Postseason · {year}</span>
+        {champion && <span className="po-result champ">⭐ World Series Champions</span>}
+      </div>
+      <div className="po-body">
+        {runs.map((s, i) => (
+          <div key={i} className="po-series">
+            <span className="po-round">{s.round}</span>
+            <span className="po-opp">vs {s.opp}</span>
+            <div className="po-games">{s.games.map((g, j) => <div key={j} className={`po-g ${g.result === "W" ? "w" : "l"}`}>{g.result}</div>)}</div>
+            <span className={`po-result ${s.eliminated ? "lost" : s.advanced ? "won" : ""}`}>
+              {s.eliminated ? `Lost ${s.wins}–${s.losses}` : s.advanced ? `Won ${s.wins}–${s.losses}` : `${s.wins}–${s.losses}`}
+            </span>
+          </div>
+        ))}
+      </div>
+      {PLAYOFF_LORE[year] && <div className="po-lore">{PLAYOFF_LORE[year]}</div>}
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────
+function App() {
+  const defaultYear = useMemo(() => getDefaultYear(), []);
+  const [year, setYear]            = useState(defaultYear);
+  const [teams, setTeams]          = useState([]);
+  const [timeline, setTl]          = useState([]);
+  const [playoffRuns, setPoRuns]   = useState([]);
+  const [madePlayoffs, setMadeP]   = useState(false);
+  const [loading, setLoading]      = useState(false);
+  const [error, setError]          = useState("");
+  const [cursor, setCursor]        = useState(0);
+  const [seaByDate, setSeaByDate]  = useState({});
+  const [nextGame, setNextGame]    = useState(null);
+  const [linescore, setLinescore]  = useState(null);
+  const liveRef   = useRef(null);
+  const preMsg    = useMemo(() => PRE_SEASON[Math.floor(Math.random() * PRE_SEASON.length)], []);
+  const nowYear   = new Date().getFullYear();
+  const yearOpts  = useMemo(() => Array.from({ length: nowYear - 1976 }, (_, i) => nowYear - i), []);
+
+  useEffect(() => {
+    const divTeams = TEAMS_BY_YEAR(year);
+    setTeams(divTeams);
+    setTl([]); setPoRuns([]); setMadeP(false); setError("");
+    setSeaByDate({}); setNextGame(null); setLinescore(null);
+    setLoading(true);
+    Promise.all([
+      Promise.all(divTeams.map(t => getTeamGames(t.id, year).then(gs => [t.id, gs]))),
+      getPlayoffGames(SEA_ID, year),
+      getSeaFullSchedule(year),
+    ]).then(([pairs, po, sched]) => {
+      let tl = buildTimeline(Object.fromEntries(pairs));
+      // Append one entry per playoff game date (standings frozen at regular season end)
+      // so the cursor can scrub into the postseason and show those games in the card.
+      if (tl.length && sched.playoffDates.length) {
+        // Null out 'last' so playoff extension entries don't bleed into the Last 10 streak
+        const frozenStandings = Object.fromEntries(
+          Object.entries(tl.at(-1).standings).map(([id, s]) => [id, { ...s, last: null }])
+        );
+        sched.playoffDates.forEach(date => {
+          if (!tl.find(e => e.date === date)) {
+            tl = [...tl, { date, standings: frozenStandings, isPlayoff: true }];
+          }
+        });
+      }      setTl(tl);
+      setCursor(getTodayCursorIdx(tl));
+      setPoRuns(po);
+      setMadeP(po.length > 0);
+      setSeaByDate(sched.byDate);
+      setNextGame(sched.next);
+    }).catch(e => setError("Unable to load season data — " + e.message))
+      .finally(() => setLoading(false));
+  }, [year]);
+
+  const today      = TODAY();
+  const cursorDate = timeline[cursor]?.date ?? today;
+  const cursorGame = seaByDate[cursorDate] ?? null;
+  const isLiveNow  = cursorDate === today && cursorGame?.state === "Live";
+
+  useEffect(() => {
+    clearInterval(liveRef.current);
+    setLinescore(null);
+    if (!isLiveNow || !cursorGame?.pk) return;
+    const poll = () => getLinescore(cursorGame.pk).then(setLinescore).catch(() => {});
+    poll();
+    liveRef.current = setInterval(poll, 20000);
+    return () => clearInterval(liveRef.current);
+  }, [isLiveNow, cursorGame?.pk]);
+
+  const pt    = timeline[cursor];
+  const sea   = pt?.standings[SEA_ID];
+  const atEnd = cursor >= timeline.length - 1;
+
+  const recent = useMemo(() =>
+    timeline.slice(Math.max(0, cursor - 10), cursor).map(p => p.standings[SEA_ID]?.last).filter(Boolean),
+    [timeline, cursor]);
+
+  const mood = useMemo(() =>
+    calcMood(sea, cursor, timeline.length, recent, atEnd ? playoffRuns : []),
+    [sea, cursor, timeline.length, recent, atEnd, playoffRuns]);
+
+  const zone = MOODS.find(z => mood <= z.t) ?? MOODS.at(-1);
+
+  const sorted = useMemo(() =>
+    !pt ? [] :
+    teams.map(t => ({ ...t, ...(pt.standings[t.id] ?? { w: 0, l: 0, gb: 0, pct: 0 }) }))
+      .sort((a, b) => a.gb - b.gb || b.w - a.w),
+    [pt, teams]);
+
+  const seaRank = sorted.findIndex(t => t.id === SEA_ID) + 1;
+
+  return (
+    <div className="root">
+      <style>{CSS}</style>
+      <header className="hdr">
+        <div>
+          <div className="title">Mariners Watch</div>
+          <div className="sub">American League West · What it feels like to root for Seattle</div>
+        </div>
+        <div className="yr-wrap">
+          <span className="yr-lbl">Season</span>
+          <select className="yr-sel" value={year} onChange={e => setYear(+e.target.value)}>
+            {yearOpts.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+      </header>
+
+      <div className="body">
+        <GameCard game={cursorGame} nextGame={nextGame} cursorDate={cursorDate} linescore={linescore} />
+
+        {LORE[year] && <div className="lore">"{LORE[year]}"</div>}
+        {sea && <MoodMeter mood={mood} zone={zone} />}
+
+        {/* Playoff panel — between feelings meter and the standings chart */}
+        {playoffRuns.length > 0 && <PlayoffPanel runs={playoffRuns} year={year} madePlayoffs={madePlayoffs} />}
+
+        <div className="sh">
+          <span className="st">AL West Standings Race · {year}</span>
+          <span className="shint">drag cursor to travel through the season</span>
+        </div>
+        <div className="legend">
+          {teams.map(t => (
+            <div key={t.id} className="leg" style={{ color: t.sea ? t.color : "#5a7a90" }}>
+              <div className="ll" style={{ background: t.color, opacity: t.sea ? 1 : 0.55 }} />
+              {t.abbr}
+            </div>
+          ))}
+        </div>
+
+        <div className="chart-wrap">
+          {loading && (
+            <div className="loader">
+              <div className="ldots"><div className="ld"/><div className="ld"/><div className="ld"/></div>
+              <div style={{ fontSize: 11, letterSpacing: 3, color: "#1a3040" }}>LOADING SEASON DATA</div>
+            </div>
+          )}
+          {!loading && error && <div className="err" style={{ color: "#907060" }}>{error}</div>}
+          {!loading && !error && timeline.length === 0 && (
+            <div className="err" style={{ color: "#3a5a70", display:"flex", alignItems:"center", justifyContent:"center", height:"240px" }}>
+              {year >= nowYear ? "There's always next year." : preMsg}
+            </div>
+          )}
+          {!loading && !error && timeline.length > 0 && (
+            <>
+              <Chart timeline={timeline} teams={teams} cursor={cursor} onCursor={setCursor} />
+              <div className="drag-hint">← drag to scrub through the {year} season →</div>
+            </>
+          )}
+        </div>
+
+        {pt && (
+          <div className="info-row">
+            <Standings sorted={sorted} date={pt.date} />
+            <SeaBox sea={sea} rank={seaRank} recent={recent} />
+          </div>
+        )}
+      </div>
+
+      <footer>
+        Designed by <a href="https://jeremyperonto.com" target="_blank" rel="noopener">Jeremy Peronto</a>
+        &nbsp;·&nbsp;
+        Data from <a href="https://www.retrosheet.org" target="_blank" rel="noopener">Retrosheet</a>
+        &nbsp;and&nbsp;
+        <a href="https://www.mlb.com" target="_blank" rel="noopener">MLB</a>
+      </footer>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
