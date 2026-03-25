@@ -2,7 +2,7 @@
 
 A Seattle Mariners fan dashboard tracking the AL West standings race — any day, any season, since 2005. Drag the cursor through any season and watch the standings, game results, playoff bracket, and fan mood meter update in real time.
 
-**[View it live →](https://jeremyperonto.github.io/MarinersMeter)** &nbsp;·&nbsp; **[Make one for your team →](#make-one-for-your-team)**
+**[View it live →](https://jeremyperonto.com/MarinersMeter/)** &nbsp;·&nbsp; **[Make one for your team →](#make-one-for-your-team)**
 
 ---
 
