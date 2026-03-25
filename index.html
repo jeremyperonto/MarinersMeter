@@ -409,7 +409,7 @@ body,#root{background:#03101f;min-height:100vh}
 .legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:7px}
 .leg{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:1px;font-family:'Barlow Condensed',sans-serif}
 .ll{width:20px;height:3px;border-radius:2px}
-.chart-wrap{background:rgba(2,9,18,.9);border:1px solid rgba(0,181,172,.1);min-height:240px;position:relative;overflow:hidden}
+.chart-wrap{background:rgba(2,9,18,.9);border:1px solid rgba(0,181,172,.1);position:relative;overflow:hidden}
 .drag-hint{text-align:center;font-size:10px;color:#1a2e3a;font-style:italic;font-family:'Libre Baskerville',serif;padding:3px 0 5px}
 .err{padding:30px;text-align:center;font-style:italic;font-family:'Libre Baskerville',serif;font-size:13px}
 .loader{display:flex;justify-content:center;align-items:center;height:240px;gap:12px;flex-direction:column}
@@ -444,7 +444,27 @@ body,#root{background:#03101f;min-height:100vh}
 footer{margin-top:36px;padding:16px 32px;border-top:1px solid rgba(0,181,172,.08);text-align:center;font-size:11px;color:#1a2e3a;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;line-height:1.8}
 footer a{color:#254555;text-decoration:none;border-bottom:1px solid rgba(0,181,172,.18);transition:color .2s,border-color .2s}
 footer a:hover{color:#00B5AC;border-color:#00B5AC}
-@media(max-width:640px){.info-row{grid-template-columns:1fr}.title{font-size:38px}.body{padding:14px 18px 0}.po-round,.po-opp{width:auto}}
+@media(max-width:640px){
+.info-row{grid-template-columns:1fr}
+.title{font-size:32px}
+.sub{font-size:11px}
+.body{padding:10px 12px 0}
+.hdr{padding:16px 12px 12px;gap:10px}
+.yr-sel{font-size:26px;padding:2px 10px}
+.game-card{padding:10px 14px}
+.game-matchup{font-size:17px}
+.sc-num{font-size:36px}
+.big-rec{font-size:42px}
+.chart-wrap{min-height:160px}
+.po-round{width:auto;font-size:8px;letter-spacing:2px}
+.po-opp{width:auto;min-width:auto;font-size:13px}
+.po-series{padding:6px 12px;gap:8px}
+.po-games{flex:0 0 auto}
+.legend{gap:10px;margin-bottom:5px}
+.leg{font-size:10px;gap:4px}
+.ll{width:14px}
+footer{padding:16px 12px}
+}
 `;
 
 // ── Chart ─────────────────────────────────────────────────────
