@@ -36,9 +36,14 @@ function isSeasonComplete(year) {
   return year < now.getFullYear() || (year === now.getFullYear() && now.getMonth() >= 10);
 }
 
-function getDefaultYear() {
-  const m = new Date().getMonth() + 1;
-  return m <= 3 ? new Date().getFullYear() - 1 : new Date().getFullYear();
+async function getDefaultYear() {
+  const now = new Date().getFullYear();
+  try {
+    const r = await fetch(`${API}/schedule?sportId=1&season=${now}&teamId=${SEA_ID}&gameType=R&startDate=${now}-01-01&endDate=${now}-12-31`);
+    const d = await r.json();
+    if (d.totalGames > 0) return now;
+  } catch {}
+  return now - 1;
 }
 
 function getTodayCursorIdx(tl) {
@@ -717,8 +722,7 @@ function PlayoffPanel({ runs, year, madePlayoffs }) {
 
 // ── App ───────────────────────────────────────────────────────
 function App() {
-  const defaultYear = useMemo(() => getDefaultYear(), []);
-  const [year, setYear]            = useState(defaultYear);
+  const [year, setYear]            = useState(null);
   const [teams, setTeams]          = useState([]);
   const [timeline, setTl]          = useState([]);
   const [playoffRuns, setPoRuns]   = useState([]);
@@ -734,7 +738,10 @@ function App() {
   const nowYear   = new Date().getFullYear();
   const yearOpts  = useMemo(() => Array.from({ length: nowYear - 1976 }, (_, i) => nowYear - i), []);
 
+  useEffect(() => { getDefaultYear().then(y => setYear(y)); }, []);
+
   useEffect(() => {
+    if (year === null) return;
     const divTeams = TEAMS_BY_YEAR(year);
     setTeams(divTeams);
     setTl([]); setPoRuns([]); setMadeP(false); setError("");
@@ -804,6 +811,8 @@ function App() {
     [pt, teams]);
 
   const seaRank = sorted.findIndex(t => t.id === SEA_ID) + 1;
+
+  if (year === null) return <div className="root"><style>{CSS}</style></div>;
 
   return (
     <div className="root">
