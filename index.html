@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800&family=Barlow+Condensed:wght@300;400;600;700&family=Libre+Baskerville:ital@1&display=swap" rel="stylesheet" />
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body,#root{background:#03101f;min-height:100vh}
+body,#root{background:#03101f}
 </style>
 </head>
 <body>
@@ -356,7 +356,7 @@ function smoothSvgPath(pts, t = 0.35) {
 const F = "'Exo 2',sans-serif";
 const CSS = `
 *{box-sizing:border-box;margin:0;padding:0}
-body,#root{background:#03101f;min-height:100vh}
+body,#root{background:#03101f}
 .root{font-family:'Barlow Condensed',sans-serif;color:#cce0f0;background:radial-gradient(ellipse at 15% 10%,rgba(0,93,93,.15) 0%,transparent 55%),radial-gradient(ellipse at 85% 85%,rgba(12,44,86,.25) 0%,transparent 55%),#03101f;display:flex;flex-direction:column}
 .hdr{display:flex;align-items:flex-end;justify-content:space-between;padding:24px 32px 16px;border-bottom:1px solid rgba(0,181,172,.15);flex-wrap:wrap;gap:14px}
 .title{font-family:${F};font-weight:800;font-size:54px;letter-spacing:1px;color:#00B5AC;line-height:1;text-shadow:0 0 60px rgba(0,181,172,.2);text-transform:uppercase}
@@ -861,7 +861,7 @@ function App() {
           )}
           {!loading && error && <div className="err" style={{ color: "#907060" }}>{error}</div>}
           {!loading && !error && timeline.length === 0 && (
-            <div className="err" style={{ color: "#3a5a70", display:"flex", alignItems:"center", justifyContent:"center", height:"240px" }}>
+            <div className="err" style={{ color: "#3a5a70", display:"flex", alignItems:"center", justifyContent:"center", minHeight:"100px" }}>
               {year >= nowYear ? "There's always next year." : preMsg}
             </div>
           )}
