@@ -764,7 +764,16 @@ function App() {
             tl = [...tl, { date, standings: frozenStandings, isPlayoff: true }];
           }
         });
-      }      setTl(tl);
+      }
+      // If season is in progress and today isn't in the timeline, append it
+      // so the cursor lands on today and "Next up" text renders naturally.
+      if (!isSeasonComplete(year) && tl.length) {
+        const today = TODAY();
+        if (today > tl.at(-1).date) {
+          tl = [...tl, { date: today, standings: { ...tl.at(-1).standings } }];
+        }
+      }
+      setTl(tl);
       setCursor(getTodayCursorIdx(tl));
       setPoRuns(po);
       setMadeP(po.length > 0);
