@@ -7,6 +7,10 @@ on:
   # Also lets you trigger it manually from the Actions tab
   workflow_dispatch:
 
+# Needed so the keepalive step below can push a commit
+permissions:
+  contents: write
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -26,3 +30,26 @@ jobs:
         run: node ingest.js --current
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+      # GitHub auto-disables scheduled workflows after 60 days with no repo
+      # activity. Since this job only writes to Supabase (never commits), the
+      # repo looked "inactive" and the schedule got turned off. This pushes a
+      # tiny empty commit whenever the last commit is older than 45 days, which
+      # keeps the repo active without spamming a commit every night. Runs even
+      # if the refresh step above fails, so a bad data run can't let the
+      # schedule lapse.
+      - name: Keepalive (prevent 60-day auto-disable)
+        if: always()
+        run: |
+          LAST_COMMIT_TS=$(git log -1 --format=%ct)
+          DAYS_SINCE=$(( ( $(date +%s) - LAST_COMMIT_TS ) / 86400 ))
+          echo "Days since last commit: $DAYS_SINCE"
+          if [ "$DAYS_SINCE" -ge 45 ]; then
+            echo "Pushing keepalive commit to reset the 60-day timer."
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "chore: keepalive (keep scheduled workflow enabled) [skip ci]"
+            git push
+          else
+            echo "Recent activity within 45 days — no keepalive commit needed."
+          fi
