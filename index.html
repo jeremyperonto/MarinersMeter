@@ -346,6 +346,10 @@ function calcMood(sea, idx, total, recent, playoffRuns, inProgress) {
   let m = (sea.w / (sea.w + sea.l) - 0.5) * 180;
   m -= Math.min(sea.gb * (2 + thru * 8), 75);
   if (recent?.length) m += (recent.filter(r => r === "W").length / recent.length - 0.5) * 36;
+  // Sitting in (or near) the division lead is worth a guarded lift, even early —
+  // enough to read "cautiously hopeful," not enough to read "smash hit." Decays
+  // to nothing by ~3.5 games back.
+  m += Math.max(0, 14 - sea.gb * 4);
   if (thru > 0.75 && sea.gb < 2)  m += 28;
   if (thru > 0.80 && sea.gb > 12) m -= 22;
   if (idx >= total - 1 && playoffRuns?.length) {
@@ -676,15 +680,18 @@ function GameCard({ game, nextGame, cursorDate, linescore }) {
 }
 
 // ── Mood Meter ────────────────────────────────────────────────
+// Numbers live in the stat box; this line just has a point of view. Keep it
+// short and dry — a fan's aside, not an explanation.
 function realityLine(r) {
-  const rd  = <b className={r.runDiff >= 0 ? "up" : "down"}>{r.runDiff > 0 ? "+" : ""}{r.runDiff}</b>;
-  const exp = <b>{r.expW}–{r.expL}</b>;
-  const rec = `${r.w}–${r.l}`;
   if (Math.abs(r.luck) <= 1)
-    return <>A {rd} run differential and a {rec} record agree: {exp} is exactly who you are — no luck owed, none to give back.</>;
-  if (r.luck < 0)  // underperforming its runs → unlucky, ghost sits to the right
-    return <>Your {rd} run differential{r.best ? " — the only one above water in the division —" : ""} says {exp}, a step ahead of your {rec}. The lead feels thin, but you've earned more than the standings show.</>;
-  return <>You're {rec}, but a {rd} run differential says {exp}. {r.firstPlace ? "First place is real — the cushion under it isn't." : "The math is coming to collect."}</>;
+    return "Record and run differential agree. This is the team.";
+  if (r.luck < 0)   // outscoring the record → should be higher than this
+    return r.best
+      ? "Best run differential in the division. This should be a bigger lead."
+      : "The runs say you should be higher than this.";
+  return r.firstPlace   // record ahead of the runs → overperforming, ghost sits left
+    ? "First place, but the runs don't back it. Don't get comfortable."
+    : "Winning more than you're outscoring. The math always collects.";
 }
 
 function MoodMeter({ mood, zone, reality }) {
@@ -717,8 +724,8 @@ function MoodMeter({ mood, zone, reality }) {
       {reality && (
         <div className="reality">
           <div className="reality-legend">
-            <span><i className="lg-solid" /><b>Where you stand</b></span>
-            <span><i className="lg-ghost" /><b>What you've earned</b></span>
+            <span><i className="lg-solid" /><b>Record</b></span>
+            <span><i className="lg-ghost" /><b>Run diff</b></span>
           </div>
           <div className="reality-txt">{realityLine(reality)}</div>
         </div>
