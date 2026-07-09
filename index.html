@@ -440,6 +440,15 @@ body,#root{background:#03101f}
 .mood-needle{position:absolute;top:0;bottom:0;width:2px;background:rgba(255,255,255,.9);box-shadow:0 0 6px rgba(255,255,255,.45);transform:translateX(-1px);transition:left .8s cubic-bezier(.34,1.56,.64,1);z-index:3}
 .mood-gap{position:absolute;top:0;bottom:0;z-index:1;pointer-events:none;transition:left .8s,width .8s,background .8s}
 .mood-ghost{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed rgba(190,225,240,.55);transform:translateX(-1px);z-index:2;transition:left .8s cubic-bezier(.34,1.56,.64,1)}
+.mood-meter{position:relative}
+.mood-meter.has-tip{cursor:pointer}
+.needle-tip{position:absolute;bottom:calc(100% + 8px);transform:translateX(-50%);z-index:20;pointer-events:none;background:rgba(3,16,31,.97);border:1px solid rgba(0,181,172,.28);border-radius:3px;padding:6px 9px;display:flex;flex-direction:column;gap:4px;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.55)}
+.needle-tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(3,16,31,.97)}
+.nt-row{display:flex;align-items:center;gap:7px}
+.nt-row b{font-family:${F};font-weight:700;font-size:13px;letter-spacing:.3px;color:#cfe4f0;margin-left:auto;padding-left:8px}
+.nt-lbl{font-size:8px;letter-spacing:1.5px;color:#6a8496;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
+.nt-solid{width:2px;height:11px;background:rgba(255,255,255,.9);box-shadow:0 0 5px rgba(255,255,255,.4);flex-shrink:0}
+.nt-ghost{width:0;height:11px;border-left:2px dashed rgba(190,225,240,.6);flex-shrink:0}
 .mood-labels{display:flex;justify-content:space-between;margin-top:4px;padding:0 1px}
 .ml{font-size:8px;letter-spacing:.5px;color:#243545;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
 .po-wrap{margin:16px 0;border:1px solid rgba(255,200,50,.15);background:rgba(0,0,0,.5)}
@@ -674,6 +683,17 @@ function MoodMeter({ mood, zone, reality }) {
   const pct      = (mood + 100) / 2;
   const ghostPct = reality ? (reality.ghostMood + 100) / 2 : null;
   const ghostRight = reality && ghostPct >= pct;   // earned better than the record → good
+  const [tip, setTip] = useState(false);
+  // Desktop hovers; touch taps (no hover state to lean on).
+  const canHover = useMemo(() =>
+    typeof window !== "undefined" && window.matchMedia("(hover: hover)").matches, []);
+  const tipProps = reality
+    ? (canHover
+        ? { onMouseEnter: () => setTip(true), onMouseLeave: () => setTip(false) }
+        : { onClick: () => setTip(t => !t) })
+    : {};
+  // Anchor the tooltip over the needles, clamped so it can't run off either edge.
+  const tipX = reality ? Math.min(84, Math.max(16, (pct + ghostPct) / 2)) : 50;
   return (
     <div className="mood-section">
       <div className="mood-header">
@@ -682,17 +702,25 @@ function MoodMeter({ mood, zone, reality }) {
           <span className="mood-txt" style={{ color: zone.color }}>{zone.label}</span>
         </div>
       </div>
-      <div className="mood-bar">
-        <div className="mood-grad" />
-        {reality && (
-          <div className="mood-gap" style={{
-            left: `${Math.min(pct, ghostPct)}%`,
-            width: `${Math.abs(pct - ghostPct)}%`,
-            background: ghostRight ? "rgba(0,181,172,.22)" : "rgba(232,119,34,.20)",
-          }} />
+      <div className={`mood-meter${reality ? " has-tip" : ""}`} {...tipProps}>
+        <div className="mood-bar">
+          <div className="mood-grad" />
+          {reality && (
+            <div className="mood-gap" style={{
+              left: `${Math.min(pct, ghostPct)}%`,
+              width: `${Math.abs(pct - ghostPct)}%`,
+              background: ghostRight ? "rgba(0,181,172,.22)" : "rgba(232,119,34,.20)",
+            }} />
+          )}
+          {reality && <div className="mood-ghost" style={{ left: `${ghostPct}%` }} />}
+          <div className="mood-needle" style={{ left: `${pct}%` }} />
+        </div>
+        {reality && tip && (
+          <div className="needle-tip" style={{ left: `${tipX}%` }}>
+            <div className="nt-row"><i className="nt-solid" /><span className="nt-lbl">Actual</span><b>{reality.w}–{reality.l}</b></div>
+            <div className="nt-row"><i className="nt-ghost" /><span className="nt-lbl">Expected</span><b>{reality.expW}–{reality.expL}</b></div>
+          </div>
         )}
-        {reality && <div className="mood-ghost" style={{ left: `${ghostPct}%` }} />}
-        <div className="mood-needle" style={{ left: `${pct}%` }} />
       </div>
       <div className="mood-labels">
         {["DESPAIR","RESIGNED","MEH","HOPEFUL","BELIEVE"].map((l, i) => <span key={i} className="ml">{l}</span>)}
