@@ -442,16 +442,6 @@ body,#root{background:#03101f}
 .mood-ghost{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed rgba(190,225,240,.55);transform:translateX(-1px);z-index:2;transition:left .8s cubic-bezier(.34,1.56,.64,1)}
 .mood-labels{display:flex;justify-content:space-between;margin-top:4px;padding:0 1px}
 .ml{font-size:8px;letter-spacing:.5px;color:#243545;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
-.reality{margin-top:10px;display:flex;flex-direction:column;gap:6px}
-.reality-legend{display:flex;gap:16px;font-size:8px;letter-spacing:1.5px;color:#33556a;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
-.reality-legend span{display:flex;align-items:center;gap:5px}
-.reality-legend b{color:#8fb2c8;font-weight:700}
-.lg-solid{width:2px;height:9px;background:rgba(255,255,255,.9);box-shadow:0 0 5px rgba(255,255,255,.4)}
-.lg-ghost{width:0;height:9px;border-left:2px dashed rgba(190,225,240,.6)}
-.reality-txt{font-family:'Libre Baskerville',serif;font-style:italic;font-size:11.5px;line-height:1.55;color:#7893a6}
-.reality-txt b{font-style:normal;font-weight:700;color:#a9c4d6}
-.reality-txt b.up{color:#00B5AC}
-.reality-txt b.down{color:#c8894f}
 .po-wrap{margin:16px 0;border:1px solid rgba(255,200,50,.15);background:rgba(0,0,0,.5)}
 .po-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 16px 7px;border-bottom:1px solid rgba(255,200,50,.1);flex-wrap:wrap;gap:8px}
 .po-title{font-family:${F};font-weight:700;font-size:12px;letter-spacing:3px;color:#c8a840;text-transform:uppercase}
@@ -680,20 +670,6 @@ function GameCard({ game, nextGame, cursorDate, linescore }) {
 }
 
 // ── Mood Meter ────────────────────────────────────────────────
-// Numbers live in the stat box; this line just has a point of view. Keep it
-// short and dry — a fan's aside, not an explanation.
-function realityLine(r) {
-  if (Math.abs(r.luck) <= 1)
-    return "Record and run differential agree. This is the team.";
-  if (r.luck < 0)   // outscoring the record → should be higher than this
-    return r.best
-      ? "Best run differential in the division. This should be a bigger lead."
-      : "The runs say you should be higher than this.";
-  return r.firstPlace   // record ahead of the runs → overperforming, ghost sits left
-    ? "First place, but the runs don't back it. Don't get comfortable."
-    : "Winning more than you're outscoring. The math always collects.";
-}
-
 function MoodMeter({ mood, zone, reality }) {
   const pct      = (mood + 100) / 2;
   const ghostPct = reality ? (reality.ghostMood + 100) / 2 : null;
@@ -721,15 +697,6 @@ function MoodMeter({ mood, zone, reality }) {
       <div className="mood-labels">
         {["DESPAIR","RESIGNED","MEH","HOPEFUL","BELIEVE"].map((l, i) => <span key={i} className="ml">{l}</span>)}
       </div>
-      {reality && (
-        <div className="reality">
-          <div className="reality-legend">
-            <span><i className="lg-solid" /><b>Record</b></span>
-            <span><i className="lg-ghost" /><b>Run diff</b></span>
-          </div>
-          <div className="reality-txt">{realityLine(reality)}</div>
-        </div>
-      )}
     </div>
   );
 }
