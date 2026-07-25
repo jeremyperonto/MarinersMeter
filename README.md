@@ -19,6 +19,12 @@ A Seattle Mariners fan dashboard tracking the AL West standings race — any day
 
 ---
 
+## About & suggest an improvement (on the page)
+
+The live page has an **About & suggest an improvement** link in the footer. It opens a modal that explains the project, names the public data sources, links "Make one for your team" (below), and takes bug reports and feature requests — either as a prefilled GitHub issue or a prompt you can hand to your own AI. Email fallback: jeremy@peronto.com.
+
+---
+
 ## Stack
 
 This is a single self-contained HTML file. No build step, no npm, no framework installation.
