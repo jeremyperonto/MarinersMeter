@@ -11,10 +11,136 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800&family=Barlow+Condensed:wght@300;400;600;700&family=Libre+Baskerville:ital@1&display=swap" rel="stylesheet" />
+<meta name="theme-color" content="#03101f" />
 <style>
+/* ── Design tokens ──────────────────────────────────────────────
+   Two themes, one ballpark: night is a game under the lights,
+   day is a 1:10 first pitch. Day is NOT an inversion — Seattle
+   daylight is cool and bright, so the light ground is pale sky,
+   never cream.
+
+   Text tokens carry contrast floors. --ink-faint is the dimmest
+   value allowed to carry a word (>= 4.6:1 in both themes); borders
+   and rules use --line, which has no floor because it is not text.
+   ------------------------------------------------------------- */
+:root{
+  /* type scale — eight sizes, no more */
+  --fs-hero:52px; --fs-title:44px; --fs-lg:28px; --fs-md:20px;
+  --fs-body:15px; --fs-sm:13px;    --fs-label:11.5px; --fs-micro:10px;
+  /* spacing rhythm */
+  --sp-1:6px; --sp-2:10px; --sp-3:16px; --sp-4:24px; --sp-5:36px;
+  --measure:1100px;
+  /* fixed club colors — identical in both themes */
+  --gold:#c8a840; --loss:#c06060; --live:#e04040;
+}
+/* Night — the default */
+:root,:root[data-theme="night"]{
+  color-scheme:dark;
+  --bg:#03101f;
+  --bg-tint-a:rgba(0,93,93,.15);
+  --bg-tint-b:rgba(12,44,86,.25);
+  --surface:#0a1c2e;
+  --surface-sunk:#020911;
+  --surface-card:rgba(12,44,86,.4);
+  --line:rgba(0,181,172,.15);
+  --line-strong:rgba(0,181,172,.32);
+  --ink:#cfe3f0;        /* 12.9:1 */
+  --ink-dim:#8fb0c4;    /*  7.2:1 */
+  --ink-faint:#6d8ca2;  /*  4.7:1 — floor */
+  --accent:#00B5AC;
+  --accent-ink:#00B5AC; /* 7.5:1 on night ground */
+  --accent-soft:rgba(0,181,172,.10);
+  --accent-mid:rgba(0,181,172,.22);
+  --mark:#E87722;
+  --win-bg:rgba(0,181,172,.28);
+  --loss-bg:rgba(180,60,60,.28);
+  --shadow:0 20px 60px rgba(0,0,0,.6);
+  --scrim:rgba(3,16,31,.8);
+  --row-line:rgba(255,255,255,.05);
+  --sea-row:rgba(0,181,172,.07);
+  --focus:#4fd6cd;
+  --lore-ink:#c89a5e;   /* 6.1:1 */
+  --lore-bg:rgba(244,145,30,.05);
+  --lore-line:rgba(244,145,30,.16);
+  --lore-edge:rgba(244,145,30,.45);
+  --po-bg:rgba(0,0,0,.45);
+  --po-line:rgba(255,200,50,.15);
+  /* mood gradient, despair → belief */
+  --mood-0:#3a0808; --mood-1:#6a2020; --mood-2:#5a4020; --mood-3:#1a2a30;
+  --mood-4:#0a3a30; --mood-5:#005a50; --mood-6:#007a70;
+  --zone-0:#c05050; --zone-1:#b07050; --zone-2:#9a9070; --zone-3:#7a9090;
+  --zone-4:#3a9888; --zone-5:#00b0a0; --zone-6:#00B5AC;
+  --team-op:.44;
+  --needle:rgba(255,255,255,.92);
+  --needle-glow:rgba(255,255,255,.45);
+  --ghost:rgba(190,225,240,.62);
+}
+/* Day — 1:10 first pitch, roof open, marine light */
+:root[data-theme="day"]{
+  color-scheme:light;
+  /* club accents deepened for a pale ground — #c8a840 is 2.1:1 on white */
+  --gold:#7a5f10; --loss:#a63d3d; --live:#c62828;
+  --bg:#eef3f7;
+  --bg-tint-a:rgba(0,150,142,.10);
+  --bg-tint-b:rgba(120,165,200,.16);
+  --surface:#ffffff;
+  --surface-sunk:#e3ebf2;
+  --surface-card:rgba(255,255,255,.92);
+  --line:rgba(13,50,72,.14);
+  --line-strong:rgba(0,114,108,.38);
+  --ink:#0d2233;        /* 15.1:1 */
+  --ink-dim:#3f5f74;    /*  7.1:1 */
+  --ink-faint:#4d6a7d;  /*  4.9:1 — floor */
+  --accent:#00B5AC;     /* graphics only */
+  --accent-ink:#00726C; /*  4.9:1 on day ground — text safe */
+  --accent-soft:rgba(0,114,108,.08);
+  --accent-mid:rgba(0,114,108,.20);
+  --mark:#a2470f;       /* deepened so it reads as text on pale ground */
+  --win-bg:rgba(0,150,142,.22);
+  --loss-bg:rgba(176,60,60,.20);
+  --shadow:0 18px 50px rgba(13,34,51,.18);
+  --scrim:rgba(13,34,51,.45);
+  --row-line:rgba(13,50,72,.10);
+  --sea-row:rgba(0,181,172,.12);
+  --focus:#00726C;
+  --lore-ink:#8a5a1e;   /* 5.9:1 on day ground */
+  --lore-bg:rgba(200,120,20,.07);
+  --lore-line:rgba(200,120,20,.22);
+  --lore-edge:rgba(200,120,20,.55);
+  --po-bg:rgba(190,160,60,.07);
+  --po-line:rgba(150,115,20,.28);
+  /* daylight mood ramp — no near-black end; it reads as a hole on paper */
+  --mood-0:#a34242; --mood-1:#c07a52; --mood-2:#cbb277; --mood-3:#c3d0d6;
+  --mood-4:#8fc2b4; --mood-5:#3f9e8f; --mood-6:#00857c;
+  --zone-0:#a63d3d; --zone-1:#8f5426; --zone-2:#6f6535; --zone-3:#47595c;
+  --zone-4:#2b6d5f; --zone-5:#00786c; --zone-6:#00726C;
+  --team-op:.72;
+  --needle:#0d2233;
+  --needle-glow:rgba(13,34,51,.30);
+  --ghost:rgba(13,34,51,.55);
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body,#root{background:#03101f}
+body,#root{background:var(--bg)}
+/* Flipping the theme changes the custom properties an element's `transition`
+   is watching. Elements mid-transition can hold the outgoing theme's color,
+   so suppress transitions for the frame the swap happens on. */
+.theme-switching *,.theme-switching *::before,.theme-switching *::after{
+  transition:none !important
+}
 </style>
+<script>
+/* Set the theme before first paint — React mounts too late to avoid a flash. */
+(function(){
+  try{
+    var saved=localStorage.getItem("mm-theme");
+    var t=(saved==="day"||saved==="night") ? saved
+        : (window.matchMedia("(prefers-color-scheme: light)").matches ? "day" : "night");
+    document.documentElement.setAttribute("data-theme",t);
+    var m=document.querySelector('meta[name="theme-color"]');
+    if(m) m.setAttribute("content", t==="day" ? "#eef3f7" : "#03101f");
+  }catch(e){ document.documentElement.setAttribute("data-theme","night"); }
+})();
+</script>
 </head>
 <body>
 <div id="root"></div>
@@ -155,15 +281,29 @@ const PRE_SEASON = [
   "The infield dirt is freshly raked. No heartbreak has been committed here. Yet.",
 ];
 
+// Zone colors are tokens, not literals — the readout is set at 28px on both a
+// near-black and a near-white ground, and #00B5AC is 2.3:1 on the latter.
 const MOODS = [
-  { t: -65, label: "COMPLETE DESPAIR",   color: "#c05050" },
-  { t: -35, label: "RESIGNED TO FATE",   color: "#b07050" },
-  { t: -12, label: "DISAPPOINTED",       color: "#8a8060" },
-  { t:  12, label: "THE USUAL",          color: "#5a7070" },
-  { t:  35, label: "CAUTIOUSLY HOPEFUL", color: "#3a8878" },
-  { t:  65, label: "DARING TO DREAM",    color: "#00a090" },
-  { t: 100, label: "BELIEVE",            color: "#00B5AC" },
+  { t: -65, label: "COMPLETE DESPAIR",   color: "var(--zone-0)" },
+  { t: -35, label: "RESIGNED TO FATE",   color: "var(--zone-1)" },
+  { t: -12, label: "DISAPPOINTED",       color: "var(--zone-2)" },
+  { t:  12, label: "THE USUAL",          color: "var(--zone-3)" },
+  { t:  35, label: "CAUTIOUSLY HOPEFUL", color: "var(--zone-4)" },
+  { t:  65, label: "DARING TO DREAM",    color: "var(--zone-5)" },
+  { t: 100, label: "BELIEVE",            color: "var(--zone-6)" },
 ];
+
+// Scale labels for the gauge. One vocabulary — these are the MOODS zone names,
+// each placed at the centre of the span it actually covers, so the needle lands
+// under the word the readout is showing. `anchor` entries survive to phone width.
+const MOOD_TICKS = MOODS.map((z, i) => {
+  const lo = i === 0 ? -100 : MOODS[i - 1].t;
+  return {
+    label: z.label,
+    at: ((lo + z.t) / 2 + 100) / 2,
+    anchor: i === 0 || i === 3 || i === MOODS.length - 1,
+  };
+});
 
 const ROUND_ORDER = { F: 0, D: 1, L: 2, W: 3 };
 const ROUND_NAMES = { F: "Wild Card", D: "Division Series", L: "LCS", W: "World Series" };
@@ -218,10 +358,12 @@ async function getSeaFullSchedule(year) {
     return { byDate, next: null, playoffDates: playoffDates.sort() };
   }
 
-  // Current season — fetch from MLB API
+  // Current season — fetch from MLB API. hydrate=team is what puts
+  // `abbreviation` on the team object; without it every current-season game
+  // card falls back to "OPP".
   const [regR, poR] = await Promise.all([
-    fetch(`${API}/schedule?sportId=1&season=${year}&teamId=${SEA_ID}&gameType=R`),
-    fetch(`${API}/schedule?sportId=1&season=${year}&teamId=${SEA_ID}&gameType=F,D,L,W`),
+    fetch(`${API}/schedule?sportId=1&season=${year}&teamId=${SEA_ID}&gameType=R&hydrate=team`),
+    fetch(`${API}/schedule?sportId=1&season=${year}&teamId=${SEA_ID}&gameType=F,D,L,W&hydrate=team`),
   ]);
   const [regD, poD] = await Promise.all([regR.json(), poR.json()]);
 
@@ -343,14 +485,24 @@ function calcMood(sea, idx, total, recent, playoffRuns, inProgress) {
   // reaches "today", so idx/total is ~1.0 by July — which would fire the
   // stretch-run bonuses months early. Measure by games played / 162 instead.
   const thru = inProgress ? Math.min(1, (sea.w + sea.l) / 162) : idx / Math.max(1, total);
-  let m = (sea.w / (sea.w + sea.l) - 0.5) * 180;
-  m -= Math.min(sea.gb * (2 + thru * 8), 75);
+  const madePlayoffs = idx >= total - 1 && playoffRuns?.length > 0;
+  const pct = sea.w / (sea.w + sea.l);
+  // How good the team is has to outweigh how far back it sits, or every season
+  // more than ~9 games out flattens into the same zone regardless of record —
+  // which is how 89-win 2018 used to read the same as 61-win 2010.
+  let m = (pct - 0.5) * 240;
+  // Games back. Softer slope than a straight deficit penalty, because in the
+  // wild-card era the division is not the only door — and once a team is
+  // actually in, the deficit stops describing how the season felt at all.
+  // 2022 finished 16 back of a 106-win Houston and ended a 21-year drought.
+  m -= madePlayoffs
+    ? Math.min(sea.gb * 2, 15)
+    : Math.min(sea.gb * (2 + thru * 5), 38);
   if (recent?.length) m += (recent.filter(r => r === "W").length / recent.length - 0.5) * 36;
   // Division position: actually being in first is emotionally distinct from
-  // chasing it. A discrete lead bonus plus a small fading credit for hanging
-  // close — so dropping out of first genuinely moves the needle, instead of
-  // reading the same as still leading.
-  m += (sea.gb === 0 ? 12 : 0) + Math.max(0, 6 - sea.gb * 3);
+  // chasing it. A discrete lead bonus plus a fading credit for hanging close,
+  // wide enough that a live race in July reads like one.
+  m += (sea.gb === 0 ? 12 : 0) + Math.max(0, 18 - sea.gb * 6);
   // Momentum: a live win/loss streak colors how it feels right now. A 3-game
   // skid and a 3-game surge shouldn't land in the same place at an even last-10.
   if (recent?.length) {
@@ -360,11 +512,21 @@ function calcMood(sea, idx, total, recent, playoffRuns, inProgress) {
     m += (last === "W" ? 1 : -1) * Math.min(streak, 5) * 2.2;   // up to ±11
   }
   if (thru > 0.75 && sea.gb < 2)  m += 28;
-  if (thru > 0.80 && sea.gb > 12) m -= 22;
-  if (idx >= total - 1 && playoffRuns?.length) {
+  // Out of it late — but only if they were actually bad. A winning team that
+  // missed by three games is a different feeling from one losing 100.
+  if (thru > 0.80 && sea.gb > 12 && pct < 0.5 && !madePlayoffs) m -= 22;
+  if (madePlayoffs) {
+    // Getting there is the thing. October always ends badly for 29 teams, so
+    // qualifying has to outweigh the elimination that necessarily follows it —
+    // otherwise every playoff season scores below every quiet losing one.
+    m += 55;
     const last = playoffRuns.at(-1);
-    if (last.eliminated) { m -= ({ F: 20, D: 35, L: 55, W: 80 }[last.gameType] ?? 20); if (last.gameType === "L" && last.wins >= 2) m -= 15; }
-    if (!last.eliminated) m = Math.min(100, m + 50);
+    if (last.eliminated) {
+      m -= ({ F: 8, D: 15, L: 25, W: 35 }[last.gameType] ?? 8);
+      if (last.gameType === "L" && last.wins >= 2) m -= 15;   // came within a game
+    } else {
+      m = Math.min(100, m + 45);                              // won it all
+    }
   }
   return Math.max(-100, Math.min(100, m));
 }
@@ -409,160 +571,291 @@ function smoothSvgPath(pts, t = 0.35) {
   return d;
 }
 
+// ── The October register ─────────────────────────────────────
+// The regular-season meter reads a record. October doesn't have one worth
+// reading — the standings are frozen at the September finale, and what a fan
+// actually feels is series state: up 2-0, facing elimination, still alive.
+// These build a second register for the postseason dates, leaving the
+// regular-season record, the chart, and the timeline untouched.
+
+// How many wins the series took. The winner's total IS the format: a best-of-7
+// that ends 4-2 gives 4, a best-of-3 gives 2, a one-game Wild Card gives 1.
+function seriesNeeded(s) { return Math.max(s.wins, s.losses) || 1; }
+
+// Each series as it stood on the cursor date.
+function octoberState(runs, cursorDate) {
+  if (!runs?.length || !cursorDate) return null;
+  const series = runs.map(s => {
+    const needed = seriesNeeded(s);
+    const played = s.games.filter(g => g.date <= cursorDate);
+    const w = played.filter(g => g.result === "W").length;
+    const l = played.filter(g => g.result === "L").length;
+    return {
+      round: s.round, gameType: s.gameType, opp: s.opp, needed, w, l,
+      maxGames: needed * 2 - 1,
+      started: played.length > 0,
+      won:  w >= needed,
+      lost: l >= needed,
+      brink: w === needed - 1 && l < needed,          // one win from clinching
+      facingElim: l === needed - 1 && w < needed,     // one loss from out
+      games: s.games.map(g => ({ ...g, played: g.date <= cursorDate })),
+    };
+  });
+  const started = series.filter(s => s.started);
+  if (!started.length) return null;
+  return { series, current: started.at(-1), roundsWon: started.filter(s => s.won).length };
+}
+
+const ROUND_DEPTH = { F: 0, D: 8, L: 18, W: 30 };
+
+function calcOctoberMood(state) {
+  if (!state) return 0;
+  const { current, roundsWon } = state;
+  // You are playing baseball in October. That is the floor of the feeling.
+  let m = 30;
+  m += ROUND_DEPTH[current.gameType] ?? 0;
+  m += roundsWon * 18;
+  if (current.won && current.gameType === "W") return 100;   // won it all
+  if (current.won)             m += 25;
+  else if (current.lost)       m -= 30;
+  else if (current.facingElim) m -= 22;
+  else if (current.brink)      m += 18;
+  else if (current.w > current.l) m += 12;
+  else if (current.l > current.w) m -= 12;
+  // Getting eliminated in October still beats a season that never got there,
+  // so the worst this register reads is DISAPPOINTED.
+  return Math.max(-34, Math.min(100, m));
+}
+
+function octoberTone(s) {
+  if (!s) return "";
+  if (s.lost || s.facingElim) return "luck-bad";
+  if (s.won || s.brink || s.w > s.l) return "luck-good";
+  return "";
+}
+
+// The line under the gauge during October, in place of record/earned/luck.
+function octoberPhrase(state) {
+  const s = state?.current;
+  if (!s) return null;
+  if (s.won && s.gameType === "W") return "World Series champions";
+  if (s.won)  return `won the ${s.round} ${s.w}–${s.l}`;
+  if (s.lost) return `out of the ${s.round} ${s.w}–${s.l}`;
+  if (s.facingElim) return `down ${s.w}–${s.l}, facing elimination`;
+  if (s.brink) return `up ${s.w}–${s.l}, one win from the next round`;
+  if (s.w > s.l) return `up ${s.w}–${s.l}`;
+  if (s.l > s.w) return `down ${s.w}–${s.l}`;
+  return `even ${s.w}–${s.l}`;
+}
+
 // ── CSS ──────────────────────────────────────────────────────
 const F = "'Exo 2',sans-serif";
 const CSS = `
-*{box-sizing:border-box;margin:0;padding:0}
-body,#root{background:#03101f}
-.root{font-family:'Barlow Condensed',sans-serif;color:#cce0f0;background:radial-gradient(ellipse at 15% 10%,rgba(0,93,93,.15) 0%,transparent 55%),radial-gradient(ellipse at 85% 85%,rgba(12,44,86,.25) 0%,transparent 55%),#03101f;display:flex;flex-direction:column}
-.hdr{display:flex;align-items:flex-end;justify-content:space-between;padding:24px 32px 16px;border-bottom:1px solid rgba(0,181,172,.15);flex-wrap:wrap;gap:14px}
-.title{font-family:${F};font-weight:800;font-size:54px;letter-spacing:1px;color:#00B5AC;line-height:1;text-shadow:0 0 60px rgba(0,181,172,.2);text-transform:uppercase}
-.sub{font-family:'Libre Baskerville',serif;font-style:italic;font-size:12px;color:#2e5060;margin-top:5px;letter-spacing:1px}
-.yr-wrap{display:flex;align-items:center;gap:10px}
-.yr-lbl{font-size:10px;letter-spacing:3px;color:#1e3a4e;font-family:'Barlow Condensed',sans-serif}
-.yr-sel{background:rgba(0,181,172,.08);border:1px solid rgba(0,181,172,.25);color:#00B5AC;font-family:${F};font-weight:800;font-size:32px;letter-spacing:0;padding:2px 14px;cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;transition:all .2s}
-.yr-sel:hover{background:rgba(0,181,172,.16);border-color:rgba(0,181,172,.5)}
-.yr-sel option{background:#04101f;color:#00B5AC}
-.body{padding:18px 32px 0;max-width:1100px;margin:0 auto;width:100%}
-.game-card{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;margin-bottom:14px;background:rgba(12,44,86,.4);border:1px solid rgba(0,181,172,.2);border-left:3px solid #00B5AC;flex-wrap:wrap;gap:10px}
+.root{font-family:'Barlow Condensed',sans-serif;color:var(--ink);background:radial-gradient(ellipse at 15% 10%,var(--bg-tint-a) 0%,transparent 55%),radial-gradient(ellipse at 85% 85%,var(--bg-tint-b) 0%,transparent 55%),var(--bg);display:flex;flex-direction:column;min-height:100vh}
+/* One measure. The header, the body and the footer share a left edge —
+   previously the full-bleed header sat 305px off the centered content. */
+.wrap{max-width:var(--measure);margin:0 auto;width:100%;padding:0 var(--sp-4)}
+.hdr{border-bottom:1px solid var(--line);padding:var(--sp-4) 0 var(--sp-3)}
+.hdr .wrap{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:var(--sp-3)}
+.title{font-family:${F};font-weight:800;font-size:var(--fs-title);letter-spacing:1px;color:var(--accent-ink);line-height:1;text-transform:uppercase}
+.sub{font-family:'Libre Baskerville',serif;font-style:italic;font-size:var(--fs-sm);color:var(--ink-faint);margin-top:var(--sp-1);letter-spacing:.5px}
+.hdr-right{display:flex;align-items:center;gap:var(--sp-3)}
+.yr-wrap{display:flex;flex-direction:column;gap:3px}
+.yr-lbl{font-size:var(--fs-label);letter-spacing:2.5px;color:var(--ink-dim);font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase}
+.yr-sel{background:var(--accent-soft);border:1px solid var(--line-strong);color:var(--accent-ink);font-family:${F};font-weight:800;font-size:var(--fs-lg);letter-spacing:0;padding:2px 14px;cursor:pointer;-webkit-appearance:none;appearance:none;transition:background .2s,border-color .2s}
+.yr-sel:hover{background:var(--accent-mid)}
+.yr-sel option{background:var(--surface);color:var(--ink)}
+.yr-range{font-size:var(--fs-micro);letter-spacing:1.5px;color:var(--ink-faint);font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
+/* Day/night switch. Sun sits left, moon right; the knob covers whichever is
+   in play, so the control reads as a position rather than a label. */
+.theme-switch{background:none;border:none;padding:0;cursor:pointer;line-height:0;border-radius:999px}
+.ts-track{position:relative;display:block;width:58px;height:28px;border-radius:999px;
+  background:var(--surface-sunk);border:1px solid var(--line-strong);transition:background .2s,border-color .2s}
+.theme-switch:hover .ts-track{border-color:var(--accent-ink)}
+.ts-icon{position:absolute;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--ink-faint);transition:opacity .2s}
+.ts-sun{left:7px}
+.ts-moon{right:7px}
+.ts-icon svg{width:13px;height:13px;display:block}
+.ts-knob{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;
+  background:var(--accent);color:var(--bg);display:grid;place-items:center;
+  box-shadow:0 1px 4px rgba(0,0,0,.35);transition:transform .25s cubic-bezier(.34,1.4,.64,1)}
+.ts-knob svg{width:13px;height:13px;display:block}
+/* Night is the resting state; day slides the knob right onto the sun. */
+.ts-knob{transform:translateX(30px)}
+.theme-switch.is-day .ts-knob{transform:translateX(0)}
+.theme-switch.is-day .ts-sun{opacity:0}
+.theme-switch:not(.is-day) .ts-moon{opacity:0}
+.body{padding:var(--sp-3) var(--sp-4) 0;max-width:var(--measure);margin:0 auto;width:100%}
+.game-card{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;margin-bottom:var(--sp-3);background:var(--surface-card);border:1px solid var(--line);border-left:3px solid var(--accent);flex-wrap:wrap;gap:var(--sp-2)}
 .game-left{min-width:0;flex:1}
-.game-status{font-size:9px;letter-spacing:3px;color:#00B5AC;margin-bottom:2px;font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase}
-.game-matchup{font-family:${F};font-weight:700;font-size:21px;letter-spacing:.3px;text-transform:uppercase}
-.game-sub{font-size:10px;color:#2a4a5a;letter-spacing:1px;margin-top:2px;font-family:'Barlow Condensed',sans-serif}
-.game-nogame{font-family:'Libre Baskerville',serif;font-style:italic;font-size:14px;color:#2a4060;padding:4px 0}
-.game-next{font-size:11px;color:#7fa8b5;letter-spacing:.3px;font-family:'Barlow Condensed',sans-serif;margin-top:3px}
-.game-next b{color:#a0d0dc;font-weight:600}
+.game-status{font-size:var(--fs-label);letter-spacing:2.5px;color:var(--accent-ink);margin-bottom:2px;font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase}
+.game-matchup{font-family:${F};font-weight:700;font-size:var(--fs-md);letter-spacing:.3px;text-transform:uppercase}
+.game-sub{font-size:var(--fs-label);color:var(--ink-faint);letter-spacing:1px;margin-top:2px;font-family:'Barlow Condensed',sans-serif}
+.game-nogame{font-family:'Libre Baskerville',serif;font-style:italic;font-size:var(--fs-body);color:var(--ink-faint);padding:4px 0}
+.game-next{font-size:var(--fs-sm);color:var(--ink-dim);letter-spacing:.3px;font-family:'Barlow Condensed',sans-serif;margin-top:3px}
+.game-next b{color:var(--ink);font-weight:600}
 .game-score{display:flex;align-items:center;gap:12px;flex-shrink:0}
 .sc-t{text-align:center;min-width:44px}
-.sc-abbr{font-size:9px;letter-spacing:2px;color:#2a4a5a;font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;display:block;height:14px}
-.sc-num{font-family:${F};font-weight:800;font-size:48px;line-height:1;color:#c8dce8}
-.sc-num.sea{color:#00B5AC}
-.sc-vs{font-family:${F};font-weight:700;font-size:20px;color:#1a2a38;align-self:center;margin-top:14px}
-.lore{font-family:'Libre Baskerville',serif;font-style:italic;font-size:13px;color:#a07040;padding:10px 16px;margin-bottom:14px;background:rgba(244,145,30,.05);border:1px solid rgba(244,145,30,.15);border-left:3px solid rgba(244,145,30,.45)}
-.mood-section{margin-bottom:16px}
-.mood-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px;flex-wrap:wrap;gap:6px}
-.st{font-family:${F};font-weight:700;font-size:11px;letter-spacing:3px;color:#2e4e64;text-transform:uppercase}
+.sc-abbr{font-size:var(--fs-label);letter-spacing:2px;color:var(--ink-dim);font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;display:block;height:16px}
+.sc-num{font-family:${F};font-weight:800;font-size:var(--fs-hero);line-height:1;color:var(--ink)}
+.sc-num.sea{color:var(--accent-ink)}
+.sc-vs{font-family:${F};font-weight:700;font-size:var(--fs-md);color:var(--ink-faint);align-self:center;margin-top:14px}
+.lore{font-family:'Libre Baskerville',serif;font-style:italic;font-size:var(--fs-sm);line-height:1.5;color:var(--lore-ink);padding:var(--sp-2) var(--sp-3);margin-bottom:var(--sp-3);background:var(--lore-bg);border:1px solid var(--lore-line);border-left:3px solid var(--lore-edge)}
+/* ── The gauge ────────────────────────────────────────────────
+   The signature element. Two needles on one dial: the record they
+   have, and the record their run differential says they earned.
+   The gap between them is the story, so it is filled, and named
+   in words on the page rather than hidden behind a hover.
+   ------------------------------------------------------------ */
+.mood-section{margin-bottom:var(--sp-4)}
+.mood-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:var(--sp-2);flex-wrap:wrap;gap:var(--sp-1)}
+.st{font-family:${F};font-weight:700;font-size:var(--fs-label);letter-spacing:3px;color:var(--ink-dim);text-transform:uppercase}
 .mood-state{display:flex;align-items:center;gap:7px}
-.mood-txt{font-family:${F};font-weight:700;font-size:15px;letter-spacing:.5px;transition:color .5s;text-transform:uppercase}
-.mood-bar{height:14px;position:relative;overflow:hidden;background:rgba(2,9,18,.9);border:1px solid rgba(0,181,172,.12);border-radius:2px}
-.mood-grad{position:absolute;inset:0;background:linear-gradient(to right,#3a0808 0%,#6a2020 18%,#5a4020 35%,#1a2a30 50%,#0a3a30 65%,#005a50 82%,#007a70 100%);opacity:.8}
-.mood-needle{position:absolute;top:0;bottom:0;width:2px;background:rgba(255,255,255,.9);box-shadow:0 0 6px rgba(255,255,255,.45);transform:translateX(-1px);transition:left .8s cubic-bezier(.34,1.56,.64,1);z-index:3}
+.mood-txt{font-family:${F};font-weight:800;font-size:var(--fs-lg);letter-spacing:.5px;transition:color .5s;text-transform:uppercase;line-height:1}
+.mood-bar{height:26px;position:relative;overflow:hidden;background:var(--surface-sunk);border:1px solid var(--line);border-radius:2px}
+.mood-grad{position:absolute;inset:0;background:linear-gradient(to right,var(--mood-0) 0%,var(--mood-1) 18%,var(--mood-2) 35%,var(--mood-3) 50%,var(--mood-4) 65%,var(--mood-5) 82%,var(--mood-6) 100%);opacity:.85}
+.mood-needle{position:absolute;top:0;bottom:0;width:3px;background:var(--needle);box-shadow:0 0 8px var(--needle-glow);transform:translateX(-1.5px);transition:left .8s cubic-bezier(.34,1.56,.64,1);z-index:3}
 .mood-gap{position:absolute;top:0;bottom:0;z-index:1;pointer-events:none;transition:left .8s,width .8s,background .8s}
-.mood-ghost{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed rgba(190,225,240,.55);transform:translateX(-1px);z-index:2;transition:left .8s cubic-bezier(.34,1.56,.64,1)}
+.mood-ghost{position:absolute;top:0;bottom:0;width:0;border-left:3px dashed var(--ghost);transform:translateX(-1.5px);z-index:2;transition:left .8s cubic-bezier(.34,1.56,.64,1)}
 .mood-meter{position:relative}
-.mood-meter.has-tip{cursor:pointer}
-.needle-tip{position:absolute;bottom:calc(100% + 8px);transform:translateX(-50%);z-index:20;pointer-events:none;background:rgba(3,16,31,.97);border:1px solid rgba(0,181,172,.28);border-radius:3px;padding:6px 9px;display:flex;flex-direction:column;gap:4px;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.55)}
-.needle-tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(3,16,31,.97)}
-.nt-row{display:flex;align-items:center;gap:7px}
-.nt-row b{font-family:${F};font-weight:700;font-size:13px;letter-spacing:.3px;color:#cfe4f0;margin-left:auto;padding-left:8px}
-.nt-lbl{font-size:8px;letter-spacing:1.5px;color:#6a8496;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
-.nt-solid{width:2px;height:11px;background:rgba(255,255,255,.9);box-shadow:0 0 5px rgba(255,255,255,.4);flex-shrink:0}
-.nt-ghost{width:0;height:11px;border-left:2px dashed rgba(190,225,240,.6);flex-shrink:0}
-.mood-labels{display:flex;justify-content:space-between;margin-top:4px;padding:0 1px}
-.ml{font-size:8px;letter-spacing:.5px;color:#243545;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
-.po-wrap{margin:16px 0;border:1px solid rgba(255,200,50,.15);background:rgba(0,0,0,.5)}
-.po-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 16px 7px;border-bottom:1px solid rgba(255,200,50,.1);flex-wrap:wrap;gap:8px}
-.po-title{font-family:${F};font-weight:700;font-size:12px;letter-spacing:3px;color:#c8a840;text-transform:uppercase}
+/* Needle glyphs, reused inline in the line beneath the gauge. */
+.nt-solid{width:3px;height:12px;background:var(--needle);box-shadow:0 0 5px var(--needle-glow);flex-shrink:0}
+.nt-ghost{width:0;height:12px;border-left:3px dashed var(--ghost);flex-shrink:0}
+/* Zone labels sit at their real thresholds, not at even quarters. */
+.mood-labels{position:relative;height:15px;margin-top:5px}
+.ml{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;font-size:var(--fs-micro);letter-spacing:.5px;color:var(--ink-dim);text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
+/* The luck line — the most interesting sentence on the page. */
+.mood-luck{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin-top:var(--sp-2);font-family:'Barlow Condensed',sans-serif;font-size:var(--fs-sm);color:var(--ink-dim);letter-spacing:.3px}
+.mood-luck b{font-family:${F};font-weight:700;color:var(--ink);letter-spacing:.3px}
+/* The needle glyphs sit inline with the numbers, so which needle is which is
+   permanently legible — no hover, and nothing overlaps the card above. */
+.mood-luck .lk{display:inline-flex;align-items:center;gap:6px}
+.luck-explain{background:none;border:none;padding:0;cursor:pointer;font:inherit;color:var(--ink-faint);text-decoration:underline;text-underline-offset:2px;transition:color .2s}
+.luck-explain:hover{color:var(--accent-ink)}
+.mood-luck .luck-good{color:var(--accent-ink);font-weight:600}
+.mood-luck .luck-bad{color:var(--mark);font-weight:600}
+.mood-luck .luck-sep{color:var(--ink-faint)}
+.po-wrap{margin:var(--sp-3) 0;border:1px solid var(--po-line);background:var(--po-bg)}
+.po-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 16px 7px;border-bottom:1px solid var(--po-line);flex-wrap:wrap;gap:8px}
+.po-title{font-family:${F};font-weight:700;font-size:var(--fs-label);letter-spacing:3px;color:var(--gold);text-transform:uppercase}
 .po-body{padding:4px 0}
-.po-series{display:flex;align-items:center;padding:7px 16px;border-bottom:1px solid rgba(255,255,255,.03);gap:12px;flex-wrap:wrap}
+.po-series{display:flex;align-items:center;padding:7px 16px;border-bottom:1px solid var(--row-line);gap:12px;flex-wrap:wrap}
 .po-series:last-child{border-bottom:none}
-.po-round{font-size:9px;letter-spacing:3px;color:#6a6040;width:120px;flex-shrink:0;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
-.po-opp{font-family:${F};font-weight:700;font-size:15px;letter-spacing:.3px;color:#9a8860;min-width:160px;text-transform:uppercase}
+.po-round{font-size:var(--fs-label);letter-spacing:2.5px;color:var(--ink-dim);width:120px;flex-shrink:0;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
+.po-opp{font-family:${F};font-weight:700;font-size:var(--fs-md);letter-spacing:.3px;color:var(--gold);min-width:160px;text-transform:uppercase}
 .po-games{display:flex;gap:4px;flex:1;flex-wrap:wrap}
-.po-g{width:18px;height:18px;border-radius:2px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif}
-.po-g.w{background:rgba(0,181,172,.3);color:#00B5AC;border:1px solid rgba(0,181,172,.4)}
-.po-g.l{background:rgba(140,40,40,.3);color:#c06060;border:1px solid rgba(140,40,40,.4)}
-.po-result{font-family:${F};font-weight:700;font-size:12px;letter-spacing:.5px;padding:3px 8px;flex-shrink:0;text-transform:uppercase}
-.po-result.won{color:#00B5AC;background:rgba(0,181,172,.1);border:1px solid rgba(0,181,172,.3)}
-.po-result.lost{color:#c05050;background:rgba(160,40,40,.1);border:1px solid rgba(160,40,40,.3)}
-.po-result.champ{color:#c8a840;background:rgba(200,168,64,.1);border:1px solid rgba(200,168,64,.4)}
-.po-lore{font-family:'Libre Baskerville',serif;font-style:italic;font-size:12px;color:#7a6030;padding:10px 16px;border-top:1px solid rgba(255,200,50,.08);background:rgba(255,200,50,.02)}
-.sh{display:flex;align-items:baseline;justify-content:space-between;margin:14px 0 7px;flex-wrap:wrap;gap:6px}
-.shint{font-family:'Libre Baskerville',serif;font-style:italic;font-size:11px;color:#1e3040}
-.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:7px}
-.leg{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:1px;font-family:'Barlow Condensed',sans-serif}
+.po-g{width:18px;height:18px;border-radius:2px;font-size:var(--fs-micro);font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif}
+.po-g.w{background:var(--win-bg);color:var(--accent-ink);border:1px solid var(--line-strong)}
+.po-g.l{background:var(--loss-bg);color:var(--loss);border:1px solid var(--loss-bg)}
+.po-result{font-family:${F};font-weight:700;font-size:var(--fs-label);letter-spacing:.5px;padding:4px 9px;flex-shrink:0;text-transform:uppercase}
+.po-result.won{color:var(--accent-ink);background:var(--accent-soft);border:1px solid var(--line-strong)}
+.po-result.lost{color:var(--loss);background:var(--loss-bg);border:1px solid var(--loss-bg)}
+.po-result.champ{color:var(--gold);background:var(--po-bg);border:1px solid var(--po-line)}
+/* Slots for games the cursor hasn't reached — same box, no result, so the
+   row keeps its height as October plays out. */
+.po-g-empty{background:transparent;border:1px dashed var(--line);opacity:.55;color:transparent}
+.po-g-btn{cursor:pointer;font-family:'Barlow Condensed',sans-serif;transition:transform .12s,box-shadow .12s}
+.po-g-btn:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.po-g-btn:hover.po-g-empty{opacity:.9}
+.po-result-open{color:var(--ink-faint);border:1px solid transparent}
+.po-series.po-pending .po-round,.po-series.po-pending .po-opp{opacity:.5}
+.po-hint{font-size:var(--fs-label);letter-spacing:1.5px;color:var(--ink-faint);text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600}
+.po-lore{font-family:'Libre Baskerville',serif;font-style:italic;font-size:var(--fs-sm);line-height:1.5;color:var(--lore-ink);padding:var(--sp-2) var(--sp-3);border-top:1px solid var(--po-line)}
+.sh{display:flex;align-items:baseline;justify-content:space-between;margin:var(--sp-4) 0 var(--sp-2);flex-wrap:wrap;gap:var(--sp-1)}
+.shint{font-family:'Libre Baskerville',serif;font-style:italic;font-size:var(--fs-sm);color:var(--ink-faint)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:var(--sp-2)}
+.leg{display:flex;align-items:center;gap:6px;font-size:var(--fs-sm);font-weight:700;letter-spacing:1px;font-family:'Barlow Condensed',sans-serif}
 .ll{width:20px;height:3px;border-radius:2px}
-.chart-wrap{background:rgba(2,9,18,.9);border:1px solid rgba(0,181,172,.1);position:relative;overflow:hidden}
-.drag-hint{text-align:center;font-size:10px;color:#1a2e3a;font-style:italic;font-family:'Libre Baskerville',serif;padding:3px 0 5px}
-.err{padding:30px;text-align:center;font-style:italic;font-family:'Libre Baskerville',serif;font-size:13px}
+.chart-wrap{background:var(--surface-sunk);border:1px solid var(--line);position:relative;overflow:hidden}
+.err{padding:30px;text-align:center;font-style:italic;font-family:'Libre Baskerville',serif;font-size:var(--fs-body)}
 .loader{display:flex;justify-content:center;align-items:center;height:240px;gap:12px;flex-direction:column}
 .ldots{display:flex;gap:8px}
-.ld{width:8px;height:8px;border-radius:50%;background:#00B5AC;animation:bpulse 1.2s ease-in-out infinite}
+.ld{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:bpulse 1.2s ease-in-out infinite}
 .ld:nth-child(2){animation-delay:.2s}.ld:nth-child(3){animation-delay:.4s}
 @keyframes bpulse{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
-.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#e04040;margin-right:5px;vertical-align:middle;animation:livepulse 1.5s ease-in-out infinite}
+.loader-lbl{font-size:var(--fs-label);letter-spacing:3px;color:var(--ink-dim);font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--live);margin-right:5px;vertical-align:middle;animation:livepulse 1.5s ease-in-out infinite}
 @keyframes livepulse{0%,100%{opacity:.4}50%{opacity:1}}
-.info-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
-.panel{background:rgba(2,9,18,.8);border:1px solid rgba(0,181,172,.1);padding:14px 16px}
-.plbl{font-size:9px;letter-spacing:3px;color:#1e3a4e;margin-bottom:10px;font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase}
-.srow{display:flex;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03);gap:8px}
+.info-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);margin-top:var(--sp-3)}
+.panel{background:var(--surface);border:1px solid var(--line);padding:var(--sp-3)}
+.plbl{font-size:var(--fs-label);letter-spacing:2.5px;color:var(--ink-dim);margin-bottom:var(--sp-2);font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase}
+.srow{display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--row-line);gap:8px}
 .srow:last-child{border-bottom:none}
-.sea-row{background:rgba(0,181,172,.07);margin:0 -16px;padding:6px 16px}
-.srk{font-size:10px;color:#1e3040;width:12px;flex-shrink:0}
+.sea-row{background:var(--sea-row);margin:0 calc(-1 * var(--sp-3));padding:6px var(--sp-3)}
+.srk{font-size:var(--fs-label);color:var(--ink-faint);width:14px;flex-shrink:0}
 .sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.sabb{font-family:${F};font-weight:700;font-size:17px;width:36px;letter-spacing:.3px;flex-shrink:0;text-transform:uppercase}
-.swl{flex:1;font-size:14px;color:#5a7a90}
-.sgb{font-size:14px;font-weight:600;color:#2e4a60;width:36px;text-align:right;flex-shrink:0}
-.sgb.lead{color:#E87722}.sgb.seagb{color:#00B5AC}
-.spct{font-size:12px;color:#2a3e50;width:40px;text-align:right;flex-shrink:0}
-.big-rec{font-family:${F};font-weight:800;font-size:52px;color:#00B5AC;line-height:1;letter-spacing:0}
-.meta-row{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
-.mb-lbl{font-size:9px;letter-spacing:2px;color:#1e3a4e;margin-bottom:3px;font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase}
-.mb-val{font-family:${F};font-weight:700;font-size:19px;letter-spacing:0;text-transform:uppercase}
+.sabb{font-family:${F};font-weight:700;font-size:var(--fs-md);width:38px;letter-spacing:.3px;flex-shrink:0;text-transform:uppercase}
+.swl{flex:1;font-size:var(--fs-body);color:var(--ink-dim)}
+.sgb{font-size:var(--fs-body);font-weight:600;color:var(--ink-dim);width:38px;text-align:right;flex-shrink:0}
+.sgb.lead{color:var(--mark)}.sgb.seagb{color:var(--accent-ink)}
+.spct{font-size:var(--fs-sm);color:var(--ink-dim);width:42px;text-align:right;flex-shrink:0}
+.big-rec{font-family:${F};font-weight:800;font-size:var(--fs-hero);color:var(--accent-ink);line-height:1;letter-spacing:0}
+.meta-row{display:flex;gap:var(--sp-3);margin-top:var(--sp-2);flex-wrap:wrap}
+.mb-lbl{font-size:var(--fs-label);letter-spacing:2px;color:var(--ink-dim);margin-bottom:3px;font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase}
+.mb-val{font-family:${F};font-weight:700;font-size:var(--fs-md);letter-spacing:0;text-transform:uppercase}
 .streak{display:flex;gap:3px;margin-top:8px;flex-wrap:wrap}
-.sg{width:16px;height:16px;border-radius:2px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.sg.w{background:rgba(0,181,172,.3);color:#00B5AC}
-.sg.l{background:rgba(180,60,60,.25);color:#c06060}
-.missed-po{padding:10px 0;font-size:12px;color:#2a3a4a;font-family:'Libre Baskerville',serif;font-style:italic}
-footer{margin-top:36px;padding:16px 32px;border-top:1px solid rgba(0,181,172,.08);text-align:center;font-size:11px;color:#1a2e3a;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;line-height:1.8}
-footer a{color:#254555;text-decoration:none;border-bottom:1px solid rgba(0,181,172,.18);transition:color .2s,border-color .2s}
-footer a:hover{color:#00B5AC;border-color:#00B5AC}
-.foot-btn{background:none;border:none;padding:0;cursor:pointer;font:inherit;color:#254555;letter-spacing:.5px;border-bottom:1px solid rgba(0,181,172,.18);transition:color .2s,border-color .2s}
-.foot-btn:hover{color:#00B5AC;border-color:#00B5AC}
-.modal-overlay{position:fixed;inset:0;z-index:10000;background:rgba(3,16,31,.8);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:grid;place-items:center;padding:20px}
-.modal-panel{position:relative;background:rgba(2,9,18,.97);border:1px solid rgba(0,181,172,.25);border-radius:10px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 24px;box-shadow:0 20px 60px rgba(0,0,0,.6);text-align:left}
-.modal-close{position:absolute;top:10px;right:12px;background:none;border:none;color:#3a5a70;font-size:26px;line-height:1;cursor:pointer;padding:2px 6px;transition:color .2s;font-family:${F}}
-.modal-close:hover{color:#00B5AC}
-.modal-title{font-family:${F};font-weight:800;font-size:26px;color:#00B5AC;letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px;padding-right:28px;line-height:1.05}
-.modal-h{font-family:${F};font-weight:700;font-size:11px;letter-spacing:3px;color:#2e4e64;text-transform:uppercase;margin:22px 0 8px}
-.modal-p{font-size:15px;line-height:1.55;color:#a8c2d4;margin-bottom:10px}
-.modal-attr{font-size:12px;color:#5a7a90;margin:2px 0 4px}
-.modal-link{color:#00B5AC;text-decoration:none;border-bottom:1px solid rgba(0,181,172,.35);transition:border-color .2s}
-.modal-link:hover{border-color:#00B5AC}
+.sg{width:17px;height:17px;border-radius:2px;font-size:var(--fs-micro);font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sg.w{background:var(--win-bg);color:var(--accent-ink)}
+.sg.l{background:var(--loss-bg);color:var(--loss)}
+.missed-po{padding:var(--sp-2) 0;font-size:var(--fs-sm);color:var(--ink-faint);font-family:'Libre Baskerville',serif;font-style:italic}
+footer{margin-top:var(--sp-5);padding:var(--sp-3) 0;border-top:1px solid var(--line);font-size:var(--fs-sm);color:var(--ink-faint);font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;line-height:1.9}
+footer a{color:var(--ink-dim);text-decoration:none;border-bottom:1px solid var(--line-strong);transition:color .2s,border-color .2s}
+footer a:hover{color:var(--accent-ink);border-color:var(--accent-ink)}
+.foot-btn{background:none;border:none;padding:0;cursor:pointer;font:inherit;color:var(--ink-dim);letter-spacing:.5px;border-bottom:1px solid var(--line-strong);transition:color .2s,border-color .2s}
+.foot-btn:hover{color:var(--accent-ink);border-color:var(--accent-ink)}
+.jp-badge{position:fixed;top:12px;right:12px;z-index:9999;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--accent-soft);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line-strong);color:var(--ink-dim);text-decoration:none;font-family:system-ui,sans-serif;font-weight:700;font-size:.65rem;line-height:1;transition:background .2s,color .2s}
+.jp-badge:hover{background:var(--accent-mid);color:var(--accent-ink)}
+.modal-overlay{position:fixed;inset:0;z-index:10000;background:var(--scrim);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:grid;place-items:center;padding:20px}
+.modal-panel{position:relative;background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 24px;box-shadow:var(--shadow);text-align:left}
+.modal-close{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--ink-dim);font-size:26px;line-height:1;cursor:pointer;padding:2px 6px;transition:color .2s;font-family:${F}}
+.modal-close:hover{color:var(--accent-ink)}
+.modal-title{font-family:${F};font-weight:800;font-size:var(--fs-lg);color:var(--accent-ink);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px;padding-right:28px;line-height:1.05}
+.modal-h{font-family:${F};font-weight:700;font-size:var(--fs-label);letter-spacing:3px;color:var(--ink-dim);text-transform:uppercase;margin:22px 0 8px}
+.modal-p{font-size:var(--fs-body);line-height:1.55;color:var(--ink);margin-bottom:var(--sp-2)}
+.modal-attr{font-size:var(--fs-sm);color:var(--ink-dim);margin:2px 0 4px}
+.modal-link{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid var(--line-strong);transition:border-color .2s}
+.modal-link:hover{border-color:var(--accent-ink)}
 .sform{margin-top:2px}
-.sform textarea,.sform input{width:100%;background:rgba(0,181,172,.08);border:1px solid rgba(0,181,172,.25);color:#cce0f0;font-family:'Barlow Condensed',sans-serif;font-size:15px;padding:9px 11px;border-radius:4px;outline:none;transition:border-color .2s;margin-bottom:9px;resize:vertical}
-.sform textarea::placeholder,.sform input::placeholder{color:#3f5f72}
-.sform textarea:focus,.sform input:focus{border-color:rgba(0,181,172,.6)}
+.sform textarea,.sform input{width:100%;background:var(--accent-soft);border:1px solid var(--line-strong);color:var(--ink);font-family:'Barlow Condensed',sans-serif;font-size:var(--fs-body);padding:9px 11px;border-radius:4px;transition:border-color .2s;margin-bottom:9px;resize:vertical}
+.sform textarea::placeholder,.sform input::placeholder{color:var(--ink-faint)}
 .sform-btns{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:6px}
-.btn-primary,.btn-secondary{font-family:${F};font-weight:700;font-size:13px;letter-spacing:.5px;padding:9px 16px;border-radius:4px;cursor:pointer;text-transform:uppercase;transition:all .2s}
-.btn-primary{background:#00B5AC;border:1px solid #00B5AC;color:#03101f}
-.btn-primary:hover{background:#1ccabf;border-color:#1ccabf}
-.btn-secondary{background:rgba(0,181,172,.08);border:1px solid rgba(0,181,172,.3);color:#00B5AC}
-.btn-secondary:hover{background:rgba(0,181,172,.18);border-color:rgba(0,181,172,.6)}
-.btn-primary:disabled,.btn-secondary:disabled{opacity:.4;cursor:not-allowed}
-.modal-note{font-size:13px;color:#5a7a90;margin-top:2px}
-.ai-pre{background:rgba(3,16,31,.9);border:1px solid rgba(0,181,172,.3);border-radius:6px;color:#8fb0c2;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11.5px;line-height:1.5;padding:12px 14px;margin-bottom:10px;max-height:210px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.btn-primary,.btn-secondary{font-family:${F};font-weight:700;font-size:var(--fs-sm);letter-spacing:.5px;padding:9px 16px;border-radius:4px;cursor:pointer;text-transform:uppercase;transition:background .2s,border-color .2s,color .2s}
+.btn-primary{background:var(--accent);border:1px solid var(--accent);color:#03101f}
+.btn-primary:hover{filter:brightness(1.12)}
+.btn-secondary{background:var(--accent-soft);border:1px solid var(--line-strong);color:var(--accent-ink)}
+.btn-secondary:hover{background:var(--accent-mid)}
+.btn-primary:disabled,.btn-secondary:disabled{opacity:.45;cursor:not-allowed}
+.modal-note{font-size:var(--fs-sm);color:var(--ink-dim);margin-top:2px}
+.ai-pre{background:var(--surface-sunk);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink-dim);font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:var(--fs-label);line-height:1.5;padding:12px 14px;margin-bottom:var(--sp-2);max-height:210px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+/* Quality floor: every interactive element shows where the keyboard is.
+   Previously outline:none appeared twice with no replacement. */
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:2px}
+.mood-meter:focus-visible{outline-offset:3px}
+@media (prefers-reduced-motion:reduce){
+*,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
+}
 @media(max-width:640px){
+/* Shrink the scale itself, so every size stays in proportion. */
+:root{--fs-hero:38px;--fs-title:30px;--fs-lg:24px;--fs-md:18px;--fs-body:14px;--fs-sm:12.5px;--fs-label:11px;--fs-micro:9.5px;--sp-4:12px;--sp-5:24px}
 .info-row{grid-template-columns:1fr}
-.title{font-size:32px}
-.sub{font-size:11px}
-.body{padding:10px 12px 0}
-.hdr{padding:16px 12px 12px;gap:10px}
-.yr-sel{font-size:26px;padding:2px 10px}
+.wrap{padding:0 12px}
+.body{padding:var(--sp-2) 12px 0}
+.hdr{padding:var(--sp-3) 0 var(--sp-2)}
+.hdr .wrap{gap:var(--sp-2)}
+.hdr-right{gap:var(--sp-2);width:100%;justify-content:space-between}
+.yr-sel{padding:2px 10px}
 .game-card{padding:10px 14px}
-.game-matchup{font-size:17px}
-.sc-num{font-size:36px}
-.big-rec{font-size:42px}
-.po-round{width:auto;font-size:8px;letter-spacing:2px}
-.po-opp{width:auto;min-width:auto;font-size:13px}
+.mood-txt{font-size:var(--fs-md)}
+.mood-bar{height:22px}
+.ml-wide{display:none}   /* seven zone names don't fit a phone; keep the three anchors */
+.po-round{width:auto;letter-spacing:2px}
+.po-opp{width:auto;min-width:auto;font-size:var(--fs-body)}
 .po-series{padding:6px 12px;gap:8px}
 .po-games{flex:0 0 auto}
 .legend{gap:10px;margin-bottom:5px}
-.leg{font-size:10px;gap:4px}
+.leg{font-size:var(--fs-label);gap:4px}
 .ll{width:14px}
-footer{padding:16px 12px}
 .modal-panel{padding:18px 16px}
-.modal-title{font-size:22px}
 .sform-btns{flex-direction:column}
 .sform-btns .btn-primary,.sform-btns .btn-secondary{width:100%}
 }
@@ -615,35 +908,50 @@ function Chart({ timeline, teams, cursor, onCursor }) {
   const cursorX = xs(cursor);
   const seaGb   = timeline[cursor]?.standings[SEA_ID]?.gb ?? 0;
   const gbTicks = Array.from({ length: maxGB / 5 + 1 }, (_, i) => i * 5);
+  const cursorLabel = fmtDate(timeline[cursor]?.date).toUpperCase();
+  const flagW = Math.max(34, cursorLabel.length * 5.6 + 10);
 
   return (
-    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`}
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img"
+      aria-label={`Games back by date for each AL West team. Cursor is on ${timeline[cursor]?.date ?? ""}.`}
       style={{ width: "100%", display: "block", cursor: "crosshair", userSelect: "none" }}
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>
-      <rect x={P.l} y={P.t} width={iW} height={ys(3) - P.t} fill="rgba(0,181,172,.035)" />
+      <rect x={P.l} y={P.t} width={iW} height={ys(3) - P.t} fill="var(--accent-soft)" />
       {gbTicks.map(gb => (
         <g key={gb}>
           <line x1={P.l} y1={ys(gb)} x2={W - P.r} y2={ys(gb)}
-            stroke={gb === 0 ? "rgba(0,181,172,.2)" : "rgba(255,255,255,.028)"} strokeWidth={gb === 0 ? 1.5 : 1} />
+            stroke={gb === 0 ? "var(--line-strong)" : "var(--row-line)"} strokeWidth={gb === 0 ? 1.5 : 1} />
           <text x={P.l - 8} y={ys(gb) + 4} textAnchor="end"
-            fill={gb === 0 ? "rgba(0,181,172,.55)" : "rgba(80,130,160,.4)"} fontSize={9.5} fontFamily="Barlow Condensed,sans-serif">{gb}</text>
+            fill={gb === 0 ? "var(--accent-ink)" : "var(--ink-faint)"} fontSize={10} fontFamily="Barlow Condensed,sans-serif">{gb}</text>
         </g>
       ))}
-      <text x={11} y={P.t + iH / 2} textAnchor="middle" fill="rgba(55,95,115,.45)" fontSize={8}
+      <text x={11} y={P.t + iH / 2} textAnchor="middle" fill="var(--ink-faint)" fontSize={9}
         fontFamily="Barlow Condensed,sans-serif" letterSpacing={1.5}
         transform={`rotate(-90, 11, ${P.t + iH / 2})`}>GAMES BACK</text>
       {monthTicks.map(({ i, label }) => (
         <text key={i} x={xs(i)} y={H - 4} textAnchor="middle"
-          fill="rgba(75,115,145,.5)" fontSize={9} fontFamily="Barlow Condensed,sans-serif" letterSpacing={1}>{label}</text>
+          fill="var(--ink-faint)" fontSize={10} fontFamily="Barlow Condensed,sans-serif" letterSpacing={1}>{label}</text>
       ))}
       {paths.map(t => t.d && (
         <path key={t.id} d={t.d} fill="none" stroke={t.color}
-          strokeWidth={t.sea ? 2.6 : 1.4} strokeOpacity={t.sea ? 1 : 0.44}
+          strokeWidth={t.sea ? 2.6 : 1.4}
+          style={{ strokeOpacity: t.sea ? 1 : "var(--team-op)" }}
           strokeLinecap="round" strokeLinejoin="round" />
       ))}
-      <circle cx={cursorX} cy={ys(seaGb)} r={5} fill="#00B5AC" stroke="#03101f" strokeWidth={2.5} />
       <line x1={cursorX} y1={P.t} x2={cursorX} y2={H - P.b}
-        stroke="rgba(232,119,34,.5)" strokeWidth={1} strokeDasharray="4 3" />
+        stroke="var(--mark)" strokeWidth={1.5} strokeDasharray="4 3" strokeOpacity={0.75} />
+      {/* Date flag — turns the cursor from a hairline into something that
+          reads as a handle you can take hold of. */}
+      {cursorLabel && (
+        <g style={{ pointerEvents: "none" }}>
+          <rect x={Math.min(W - P.r - flagW, Math.max(P.l, cursorX - flagW / 2))} y={2}
+            width={flagW} height={13} rx={2} fill="var(--mark)" />
+          <text x={Math.min(W - P.r - flagW / 2, Math.max(P.l + flagW / 2, cursorX))} y={11.5}
+            textAnchor="middle" fill="var(--bg)" fontSize={9} fontWeight={700}
+            fontFamily="Barlow Condensed,sans-serif" letterSpacing={0.6}>{cursorLabel}</text>
+        </g>
+      )}
+      <circle cx={cursorX} cy={ys(seaGb)} r={6.5} fill="var(--accent)" stroke="var(--surface-sunk)" strokeWidth={2.5} />
     </svg>
   );
 }
@@ -703,7 +1011,7 @@ function GameCard({ game, nextGame, cursorDate, linescore }) {
       {/* Always render score block — visibility:hidden on no-score days keeps height stable */}
       <div className="game-score" style={{ visibility: showScore ? "visible" : "hidden" }}>
         <div className="sc-t">
-          <div className="sc-abbr" style={{ color: "#00B5AC" }}>SEA</div>
+          <div className="sc-abbr" style={{ color: "var(--accent-ink)" }}>SEA</div>
           <div className="sc-num sea">{seaScore}</div>
         </div>
         <div className="sc-vs">·</div>
@@ -716,53 +1024,139 @@ function GameCard({ game, nextGame, cursorDate, linescore }) {
   );
 }
 
-// ── Mood Meter ────────────────────────────────────────────────
-function MoodMeter({ mood, zone, reality }) {
+// ── Day / night switch ────────────────────────────────────────
+const SunIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+    strokeLinecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="4.2" />
+    <path d="M12 2v2.4M12 19.6V22M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2 12h2.4M19.6 12H22M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" />
+  </svg>
+);
+const MoonIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a6.8 6.8 0 0 0 11 11Z" />
+  </svg>
+);
+
+function ThemeToggle({ theme, onToggle }) {
+  const isDay = theme === "day";
+  return (
+    <button type="button" className={`theme-switch${isDay ? " is-day" : ""}`}
+      role="switch" aria-checked={isDay} aria-label="Day theme"
+      title={isDay ? "Switch to night" : "Switch to day"}
+      onClick={onToggle}>
+      <span className="ts-track" aria-hidden="true">
+        <span className="ts-icon ts-sun">{SunIcon}</span>
+        <span className="ts-icon ts-moon">{MoonIcon}</span>
+        <span className="ts-knob">{isDay ? SunIcon : MoonIcon}</span>
+      </span>
+    </button>
+  );
+}
+
+// Reads what the no-flash script in <head> already decided, so the button
+// never disagrees with what is on screen.
+function useTheme() {
+  const [theme, setTheme] = useState(() =>
+    document.documentElement.getAttribute("data-theme") === "day" ? "day" : "night");
+  // Whether this visitor has stated a preference. Starts true if a previous
+  // visit saved one — persisting on mount instead would silently opt everyone
+  // out of following their system setting.
+  const chosen = useRef((() => {
+    try { return !!localStorage.getItem("mm-theme"); } catch { return false; }
+  })());
+
+  useEffect(() => {
+    const el = document.documentElement;
+    el.classList.add("theme-switching");
+    el.setAttribute("data-theme", theme);
+    const m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute("content", theme === "day" ? "#eef3f7" : "#03101f");
+    // Two frames: one for the swap to paint, one to hand transitions back.
+    let inner;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => el.classList.remove("theme-switching"));
+    });
+    return () => { cancelAnimationFrame(outer); cancelAnimationFrame(inner); };
+  }, [theme]);
+
+  // Follow the system until the visitor states a preference of their own.
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: light)");
+    const onChange = e => { if (!chosen.current) setTheme(e.matches ? "day" : "night"); };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const toggle = useCallback(() => setTheme(t => {
+    const next = t === "day" ? "night" : "day";
+    chosen.current = true;
+    try { localStorage.setItem("mm-theme", next); } catch {}
+    return next;
+  }), []);
+
+  return [theme, toggle];
+}
+
+function MoodMeter({ mood, zone, reality, october, onExplain }) {
+  // October has no second needle — the standings are frozen, so a run
+  // differential against them would be measuring September.
+  if (october) reality = null;
   const pct      = (mood + 100) / 2;
   const ghostPct = reality ? (reality.ghostMood + 100) / 2 : null;
   const ghostRight = reality && ghostPct >= pct;   // earned better than the record → good
-  const [tip, setTip] = useState(false);
-  // Desktop hovers; touch taps (no hover state to lean on).
-  const canHover = useMemo(() =>
-    typeof window !== "undefined" && window.matchMedia("(hover: hover)").matches, []);
-  const tipProps = reality
-    ? (canHover
-        ? { onMouseEnter: () => setTip(true), onMouseLeave: () => setTip(false) }
-        : { onClick: () => setTip(t => !t) })
-    : {};
-  // Anchor the tooltip over the needles, clamped so it can't run off either edge.
-  const tipX = reality ? Math.min(84, Math.max(16, (pct + ghostPct) / 2)) : 50;
   return (
     <div className="mood-section">
       <div className="mood-header">
-        <span className="st">Fan Feelings Meter</span>
+        <span className="st">Fan Feelings Meter{october ? " · October" : ""}</span>
         <div className="mood-state">
           <span className="mood-txt" style={{ color: zone.color }}>{zone.label}</span>
         </div>
       </div>
-      <div className={`mood-meter${reality ? " has-tip" : ""}`} {...tipProps}>
+      <div className="mood-meter" role="img"
+        aria-label={reality
+          ? `Fan feeling: ${zone.label}. Record ${reality.w}–${reality.l}; expected record from run differential ${reality.expW}–${reality.expL}.`
+          : `Fan feeling: ${zone.label}.`}>
         <div className="mood-bar">
           <div className="mood-grad" />
           {reality && (
             <div className="mood-gap" style={{
               left: `${Math.min(pct, ghostPct)}%`,
               width: `${Math.abs(pct - ghostPct)}%`,
-              background: ghostRight ? "rgba(0,181,172,.22)" : "rgba(232,119,34,.20)",
+              background: ghostRight ? "var(--accent-mid)" : "var(--loss-bg)",
             }} />
           )}
           {reality && <div className="mood-ghost" style={{ left: `${ghostPct}%` }} />}
           <div className="mood-needle" style={{ left: `${pct}%` }} />
         </div>
-        {reality && tip && (
-          <div className="needle-tip" style={{ left: `${tipX}%` }}>
-            <div className="nt-row"><i className="nt-solid" /><span className="nt-lbl">Actual</span><b>{reality.w}–{reality.l}</b></div>
-            <div className="nt-row"><i className="nt-ghost" /><span className="nt-lbl">Expected</span><b>{reality.expW}–{reality.expL}</b></div>
-          </div>
-        )}
       </div>
       <div className="mood-labels">
-        {["DESPAIR","RESIGNED","MEH","HOPEFUL","BELIEVE"].map((l, i) => <span key={i} className="ml">{l}</span>)}
+        {MOOD_TICKS.map(t => (
+          <span key={t.label} className={`ml${t.anchor ? "" : " ml-wide"}`}
+            style={{ left: `${t.at}%`, transform: `translateX(${t.at <= 12 ? "0" : t.at >= 88 ? "-100%" : "-50%"})` }}>
+            {t.label}
+          </span>
+        ))}
       </div>
+      {october && (
+        <div className="mood-luck">
+          <span><b>{october.current.round}</b> vs {october.current.opp}</span>
+          <span className="luck-sep">·</span>
+          <span className={octoberTone(october.current)}>{octoberPhrase(october)}</span>
+          {october.roundsWon > 0 && <><span className="luck-sep">·</span>
+            <span>{october.roundsWon} {october.roundsWon === 1 ? "round" : "rounds"} won</span></>}
+        </div>
+      )}
+      {reality && !october && (
+        <div className="mood-luck">
+          <span className="lk"><i className="nt-solid" />Record <b>{reality.w}–{reality.l}</b></span>
+          <span className="luck-sep">·</span>
+          <span className="lk"><i className="nt-ghost" />Expected <b>{reality.expW}–{reality.expL}</b></span>
+          <span className="luck-sep">·</span>
+          <button type="button" className="luck-explain" onClick={onExplain}>How Expected is figured</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -778,7 +1172,7 @@ function Standings({ sorted, date }) {
         <div key={t.id} className={`srow${t.sea ? " sea-row" : ""}`}>
           <span className="srk">{i + 1}</span>
           <span className="sdot" style={{ background: t.color }} />
-          <span className="sabb" style={{ color: t.sea ? t.color : "#c8dce8" }}>{t.abbr}</span>
+          <span className="sabb" style={{ color: t.sea ? "var(--accent-ink)" : "var(--ink)" }}>{t.abbr}</span>
           <span className="swl">{t.w}–{t.l}</span>
           <span className={`sgb${i === 0 ? " lead" : t.sea ? " seagb" : ""}`}>
             {i === 0 ? "—" : t.gb % 1 === 0 ? t.gb : t.gb.toFixed(1)}
@@ -796,19 +1190,19 @@ function SeaBox({ sea, rank, recent, reality }) {
   const { w, l, gb, pct } = sea;
   const total = w + l;
   const proj  = total > 0 ? Math.round((w / total) * 162) : 81;
-  const gbColor = gb === 0 ? "#00B5AC" : gb < 5 ? "#b8d0e8" : gb < 12 ? "#b88050" : "#b05050";
+  const gbColor = gb === 0 ? "var(--accent-ink)" : gb < 5 ? "var(--ink)" : gb < 12 ? "var(--mark)" : "var(--loss)";
   const suffix  = (["", "st", "nd", "rd"])[rank] || "th";
   return (
     <div className="panel">
       <div className="plbl">Season Record</div>
       <div className="big-rec">{w}–{l}</div>
       <div className="meta-row">
-        <div><div className="mb-lbl">Win Pct</div><div className="mb-val" style={{ color: "#7aa0b8" }}>{pct.toFixed(3).replace(/^0/, "")}</div></div>
+        <div><div className="mb-lbl">Win Pct</div><div className="mb-val" style={{ color: "var(--ink)" }}>{pct.toFixed(3).replace(/^0/, "")}</div></div>
         <div><div className="mb-lbl">{gb === 0 ? "Division" : "Games Back"}</div><div className="mb-val" style={{ color: gbColor }}>{gb === 0 ? "1st" : gb % 1 === 0 ? String(gb) : gb.toFixed(1)}</div></div>
-        <div><div className="mb-lbl">Div Rank</div><div className="mb-val" style={{ color: rank === 1 ? "#00B5AC" : "#6a8090" }}>{rank}{suffix}</div></div>
-        <div><div className="mb-lbl">Proj Wins</div><div className="mb-val" style={{ color: proj >= 90 ? "#6aaa80" : proj >= 81 ? "#8090a0" : "#a07060" }}>{proj}</div></div>
-        {reality && <div><div className="mb-lbl">Run Diff</div><div className="mb-val" style={{ color: reality.runDiff >= 0 ? "#00B5AC" : "#c8894f" }}>{reality.runDiff > 0 ? "+" : ""}{reality.runDiff}</div></div>}
-        {reality && <div><div className="mb-lbl">Expected</div><div className="mb-val" style={{ color: "#7aa0b8" }}>{reality.expW}–{reality.expL}</div></div>}
+        <div><div className="mb-lbl">Div Rank</div><div className="mb-val" style={{ color: rank === 1 ? "var(--accent-ink)" : "var(--ink)" }}>{rank}{suffix}</div></div>
+        <div><div className="mb-lbl">Proj Wins</div><div className="mb-val" style={{ color: proj >= 90 ? "var(--accent-ink)" : proj >= 81 ? "var(--ink)" : "var(--mark)" }}>{proj}</div></div>
+        {reality && <div><div className="mb-lbl">Run Diff</div><div className="mb-val" style={{ color: reality.runDiff >= 0 ? "var(--accent-ink)" : "var(--mark)" }}>{reality.runDiff > 0 ? "+" : ""}{reality.runDiff}</div></div>}
+        {reality && <div><div className="mb-lbl">Expected</div><div className="mb-val" style={{ color: "var(--ink)" }}>{reality.expW}–{reality.expL}</div></div>}
       </div>
       {recent.length > 0 && (
         <div>
@@ -821,26 +1215,63 @@ function SeaBox({ sea, rank, recent, reality }) {
 }
 
 // ── Playoff Panel ─────────────────────────────────────────────
-function PlayoffPanel({ runs, year, madePlayoffs }) {
+// The panel keeps its full structure at every cursor position — rounds,
+// opponents, and one slot per possible game in the format — and fills the
+// results in as the cursor passes each date. Structure never changes, so the
+// page never jumps; the same reason the game card uses visibility:hidden
+// instead of display:none. The season lore already states the outcome, so
+// there is nothing here worth hiding — the point is that October moves.
+function PlayoffPanel({ runs, year, madePlayoffs, cursorDate, onJump }) {
   if (!madePlayoffs && !runs.length) return <div className="missed-po">Did not qualify for the postseason.</div>;
   const champion = runs.length && !runs.at(-1).eliminated;
+  const state = octoberState(runs, cursorDate);
+  const reached = !!state;
+  const champRevealed = champion && state?.current?.won && state.current.gameType === "W";
   return (
     <div className="po-wrap">
       <div className="po-hdr">
         <span className="po-title">Postseason · {year}</span>
-        {champion && <span className="po-result champ">⭐ World Series Champions</span>}
+        {champRevealed
+          ? <span className="po-result champ">⭐ World Series Champions</span>
+          : <span className="po-hint">{reached ? "" : "Click a game to jump there"}</span>}
       </div>
       <div className="po-body">
-        {runs.map((s, i) => (
-          <div key={i} className="po-series">
-            <span className="po-round">{s.round}</span>
-            <span className="po-opp">vs {s.opp}</span>
-            <div className="po-games">{s.games.map((g, j) => <div key={j} className={`po-g ${g.result === "W" ? "w" : "l"}`}>{g.result}</div>)}</div>
-            <span className={`po-result ${s.eliminated ? "lost" : s.advanced ? "won" : ""}`}>
-              {s.eliminated ? `Lost ${s.wins}–${s.losses}` : s.advanced ? `Won ${s.wins}–${s.losses}` : `${s.wins}–${s.losses}`}
-            </span>
-          </div>
-        ))}
+        {runs.map((s, i) => {
+          const needed = seriesNeeded(s);
+          const slots  = needed * 2 - 1;
+          const played = s.games.filter(g => !cursorDate || g.date <= cursorDate);
+          const w = played.filter(g => g.result === "W").length;
+          const l = played.filter(g => g.result === "L").length;
+          const decided = w >= needed || l >= needed;
+          return (
+            <div key={i} className={`po-series${played.length ? "" : " po-pending"}`}>
+              <span className="po-round">{s.round}</span>
+              <span className="po-opp">vs {s.opp}</span>
+              <div className="po-games">
+                {Array.from({ length: slots }, (_, j) => {
+                  // Five October dates sit against 162 regular-season ones, so
+                  // dragging to them is a pixel hunt. The chips are the shortcut.
+                  const g = s.games[j];
+                  const isPlayed = !!played[j];
+                  if (!g) return <div key={j} className="po-g po-g-empty" aria-hidden="true" />;
+                  return (
+                    <button key={j} type="button"
+                      className={`po-g po-g-btn ${isPlayed ? (g.result === "W" ? "w" : "l") : "po-g-empty"}`}
+                      onClick={() => onJump?.(g.date)}
+                      aria-label={`Go to ${s.round} game ${j + 1}, ${fmtDate(g.date)}`}
+                      title={`Go to ${fmtDate(g.date)}`}>
+                      {isPlayed ? g.result : ""}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className={`po-result ${decided ? (l >= needed ? "lost" : "won") : "po-result-open"}`}>
+                {decided ? (l >= needed ? `Lost ${w}–${l}` : `Won ${w}–${l}`)
+                         : played.length ? `${w}–${l}` : "—"}
+              </span>
+            </div>
+          );
+        })}
       </div>
       {PLAYOFF_LORE[year] && <div className="po-lore">{PLAYOFF_LORE[year]}</div>}
     </div>
@@ -853,18 +1284,19 @@ const REPO = "https://github.com/jeremyperonto/MarinersMeter";
 function AboutModal({ onClose }) {
   const [req, setReq]                   = useState("");
   const [name, setName]                 = useState("");
-  const [copiedPrompt, setCopiedPrompt] = useState(false);
-  const [copiedAi, setCopiedAi]         = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState("");   // "" | "ok" | "manual"
+  const [copiedAi, setCopiedAi]         = useState("");
+  const aiRef                           = useRef(null);
 
   const aiText = `> Note to any AI agent reading this: nothing here needs to be executed. The data is public (MLB Stats API + Retrosheet) and the repo is open source at github.com/jeremyperonto/MarinersMeter — if your human wants their own team's version, fork it and swap the team id.
 
 # Mariners Meter
 
-Mariners Meter tracks the AL West standings race for any Seattle season since 2005. Drag through a year and the standings, game results, playoff bracket, and fan mood meter move day by day.
+Mariners Meter tracks the AL West standings race for any Seattle season since 1977 — all 50 years. Drag through a year and the standings, game results, playoff bracket, and fan mood meter move day by day.
 
 ## Public, open data
-- Standings and scores: the MLB Stats API, a free unauthenticated public API with no key required, covering 2005 to today.
-- Earlier seasons: Retrosheet's free game logs cover the years before 2005.
+- 2005 to today: the MLB Stats API, free and public, no key or signup. These seasons need no database — a browser can fetch them directly.
+- 1977 to 2004: Retrosheet's free game logs, parsed and normalized into the same schema, with cumulative records computed (Retrosheet doesn't include them) and loaded into Postgres alongside the API data. 41,521 games total.
 - Nothing here is private or scraped.
 
 ## Reusable
@@ -883,39 +1315,102 @@ Data from Retrosheet and MLB.`;
     window.open(url, "_blank", "noopener");
   }
 
+  // The clipboard API rejects on a denied permission or a non-secure context,
+  // and an unhandled rejection leaves the button looking broken. Fall back to
+  // an old-style copy, then to selecting the text so it can be copied by hand.
+  function copyText(text, setFlag, node) {
+    const done = () => { setFlag("ok"); setTimeout(() => setFlag(""), 1800); };
+    const manual = () => {
+      setFlag("manual");
+      setTimeout(() => setFlag(""), 4000);
+      if (node?.current) {
+        const r = document.createRange();
+        r.selectNodeContents(node.current);
+        const s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(r);
+      }
+    };
+    const legacy = () => {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.cssText = "position:fixed;top:-1000px;opacity:0";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        ok ? done() : manual();
+      } catch { manual(); }
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(done, legacy);
+    } else legacy();
+  }
+
   function copyPrompt() {
     const body = req.trim();
     if (!body) return;
     const text = "Clone https://github.com/jeremyperonto/MarinersMeter and make this change to my local copy:\n\n" + body + "\n\nThe project is open source. If the change would help others too, also open an issue at https://github.com/jeremyperonto/MarinersMeter/issues" + (name.trim() ? " and credit " + name.trim() : "") + ".";
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedPrompt(true);
-      setTimeout(() => setCopiedPrompt(false), 1600);
-    });
+    copyText(text, setCopiedPrompt);
   }
 
   function copyAi() {
-    navigator.clipboard.writeText(aiText).then(() => {
-      setCopiedAi(true);
-      setTimeout(() => setCopiedAi(false), 1600);
-    });
+    copyText(aiText, setCopiedAi, aiRef);
   }
+
+  // Keyboard: Escape closes, focus moves into the dialog on open and returns to
+  // whatever opened it on close, and Tab is trapped inside while it's up.
+  const panelRef = useRef(null);
+  const closeRef = useRef(null);
+  useEffect(() => {
+    const opener = document.activeElement;
+    closeRef.current?.focus();
+    const onKey = e => {
+      if (e.key === "Escape") { e.stopPropagation(); onClose(); return; }
+      if (e.key !== "Tab" || !panelRef.current) return;
+      const items = panelRef.current.querySelectorAll(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])');
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      if (opener instanceof HTMLElement) opener.focus();
+    };
+  }, [onClose]);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Close">×</button>
+      <div className="modal-panel" ref={panelRef} onClick={e => e.stopPropagation()}
+        role="dialog" aria-modal="true" aria-labelledby="about-title">
+        <button className="modal-close" ref={closeRef} onClick={onClose} aria-label="Close">×</button>
 
-        <div className="modal-title">About Mariners Meter</div>
-        <p className="modal-p">Mariners Meter tracks the AL West standings race for any Seattle season since 2005. Drag through a year and the standings, game results, playoff bracket, and fan mood meter move day by day.</p>
+        <div className="modal-title" id="about-title">About Mariners Meter</div>
+        <p className="modal-p">Mariners Meter tracks the AL West standings race for any Seattle season since 1977 — all 50 years, every game the franchise has played. Drag through a year and the standings, game results, playoff bracket, and fan mood meter move day by day.</p>
 
-        <div className="modal-h">Public data, open source</div>
-        <p className="modal-p">The data is public and open. Standings and scores come from the MLB Stats API, a free unauthenticated public API with no key required, covering 2005 to today. Retrosheet's free game logs cover the years before that. Nothing here is private or scraped.</p>
-        <p className="modal-p">The project is open source, so you can build a version for any MLB team. Fork the repo, swap in the team ID, and deploy. The <a className="modal-link" href="https://github.com/jeremyperonto/MarinersMeter#make-one-for-your-team" target="_blank" rel="noopener">README "Make one for your team"</a> section walks through it.</p>
+        <div className="modal-h">Where the data comes from</div>
+        <p className="modal-p">Two public sources, both free, nothing private or scraped.</p>
+        <p className="modal-p"><b>2005 to today</b> comes from the MLB Stats API — free, public, no key or signup required. Any project can pull those seasons straight into a browser with no database at all.</p>
+        <p className="modal-p"><b>1977 to 2004</b> is the part that took work. The MLB API doesn't reach back that far, so this project parses <a className="modal-link" href="https://www.retrosheet.org" target="_blank" rel="noopener">Retrosheet's</a> free game logs, computes the cumulative records they don't include, normalizes them to match the API's shape, and loads them into a Postgres database alongside the modern seasons. That's 41,521 games, the full franchise, served from one place.</p>
+
+        <div className="modal-h">What "Expected" means</div>
+        <p className="modal-p">The meter has two needles. The solid one is the team's actual record. The dashed one is the record their runs scored and allowed point to — what a team with that run differential typically wins.</p>
+        <p className="modal-p">It's the Pythagorean expectation, a standard baseball estimate:</p>
+        <pre className="ai-pre">expected win% = RS^1.83 / (RS^1.83 + RA^1.83)</pre>
+        <p className="modal-p">RS is runs scored, RA is runs allowed, and 1.83 is the exponent that fits modern baseball best. Multiply that win percentage by games played and you get the expected record. A team well below its expected record has usually lost close games; one above it has usually won them. The gap between the needles is that difference.</p>
+
+        <div className="modal-h">Open source</div>
+        <p className="modal-p">The project is MIT licensed, so you can build a version for any MLB team. The <a className="modal-link" href="https://github.com/jeremyperonto/MarinersMeter#make-one-for-your-team" target="_blank" rel="noopener">README "Make one for your team"</a> section walks through it, including a route that needs no coding.</p>
         <p className="modal-p"><a className="modal-link" href={REPO} target="_blank" rel="noopener">Build one for your team →</a></p>
         <p className="modal-attr">Data from <a className="modal-link" href="https://www.retrosheet.org" target="_blank" rel="noopener">Retrosheet</a> and <a className="modal-link" href="https://www.mlb.com" target="_blank" rel="noopener">MLB</a>.</p>
 
         <div className="modal-h">Suggest an improvement</div>
-        <p className="modal-p">Found a bug, or want Mariners Meter to do something it can't yet? Describe it below — it goes to a coding agent. Or copy it as a prompt and have your own AI make the change today.</p>
+        <p className="modal-p">Found a bug, or want Mariners Meter to do something it can't yet? Describe it below. "Send request" opens a prefilled issue on GitHub — you'll need a free GitHub account to post it. No account? Copy it as a prompt for your own AI, or email it.</p>
         <div className="sform">
           <textarea value={req} onChange={e => setReq(e.target.value)} rows={4}
             placeholder="Describe the bug or the change you'd like to see." />
@@ -923,15 +1418,23 @@ Data from Retrosheet and MLB.`;
             placeholder="Your name (optional, for credit)" />
           <div className="sform-btns">
             <button className="btn-primary" onClick={sendRequest} disabled={!req.trim()}>Send request →</button>
-            <button className="btn-secondary" onClick={copyPrompt} disabled={!req.trim()}>{copiedPrompt ? "Copied" : "Copy as a prompt for your own AI"}</button>
+            <button className="btn-secondary" onClick={copyPrompt} disabled={!req.trim()}>
+              {copiedPrompt === "ok" ? "Copied" : copiedPrompt === "manual" ? "Press ⌘C to copy" : "Copy as a prompt for your own AI"}
+            </button>
           </div>
+          {copiedPrompt === "manual" &&
+            <p className="modal-note">Your browser blocked the clipboard. The text is selected — press ⌘C (or Ctrl+C) to copy it.</p>}
           <p className="modal-note">You can also email <a className="modal-link" href="mailto:jeremy@peronto.com?subject=Mariners%20Meter%20request">jeremy@peronto.com</a>.</p>
         </div>
 
         <div className="modal-h">Copy for an AI agent</div>
         <p className="modal-p">A plain-text summary an AI can read to understand the project and build a version for another team.</p>
-        <pre className="ai-pre">{aiText}</pre>
-        <button className="btn-secondary" onClick={copyAi}>{copiedAi ? "Copied" : "Copy for an AI agent"}</button>
+        <pre className="ai-pre" ref={aiRef}>{aiText}</pre>
+        <button className="btn-secondary" onClick={copyAi}>
+          {copiedAi === "ok" ? "Copied" : copiedAi === "manual" ? "Press ⌘C to copy" : "Copy for an AI agent"}
+        </button>
+        {copiedAi === "manual" &&
+          <p className="modal-note">Your browser blocked the clipboard. The text above is selected — press ⌘C (or Ctrl+C).</p>}
       </div>
     </div>
   );
@@ -951,6 +1454,7 @@ function App() {
   const [nextGame, setNextGame]    = useState(null);
   const [linescore, setLinescore]  = useState(null);
   const [showAbout, setShowAbout]  = useState(false);
+  const [theme, toggleTheme]       = useTheme();
   const liveRef   = useRef(null);
   const preMsg    = useMemo(() => PRE_SEASON[Math.floor(Math.random() * PRE_SEASON.length)], []);
   const nowYear   = new Date().getFullYear();
@@ -1027,9 +1531,19 @@ function App() {
 
   const inProgress = year != null && !isSeasonComplete(year);
 
+  // October register: postseason dates read series state instead of a frozen
+  // September record. The final date keeps the season verdict, so the
+  // end-of-season calibration is unchanged — October is how it felt while it
+  // was happening; the last game is what the season came to.
+  const october = useMemo(() =>
+    pt?.isPlayoff && !atEnd ? octoberState(playoffRuns, cursorDate) : null,
+    [pt, atEnd, playoffRuns, cursorDate]);
+
   const mood = useMemo(() =>
-    calcMood(sea, cursor, timeline.length, recent, atEnd ? playoffRuns : [], inProgress),
-    [sea, cursor, timeline.length, recent, atEnd, playoffRuns, inProgress]);
+    october
+      ? calcOctoberMood(october)
+      : calcMood(sea, cursor, timeline.length, recent, atEnd ? playoffRuns : [], inProgress),
+    [october, sea, cursor, timeline.length, recent, atEnd, playoffRuns, inProgress]);
 
   const zone = MOODS.find(z => mood <= z.t) ?? MOODS.at(-1);
 
@@ -1059,15 +1573,21 @@ function App() {
     <div className="root">
       <style>{CSS}</style>
       <header className="hdr">
-        <div>
-          <div className="title">Mariners Meter</div>
-          <div className="sub">American League West · What it feels like to root for Seattle</div>
-        </div>
-        <div className="yr-wrap">
-          <span className="yr-lbl">Season</span>
-          <select className="yr-sel" value={year} onChange={e => setYear(+e.target.value)}>
-            {yearOpts.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+        <div className="wrap">
+          <div>
+            <div className="title">Mariners Meter</div>
+            <div className="sub">American League West · What it feels like to root for Seattle</div>
+          </div>
+          <div className="hdr-right">
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            <div className="yr-wrap">
+              <label className="yr-lbl" htmlFor="season">Season</label>
+              <select id="season" className="yr-sel" value={year} onChange={e => setYear(+e.target.value)}>
+                {yearOpts.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <span className="yr-range">{yearOpts.length} seasons · {yearOpts.at(-1)}–{yearOpts[0]}</span>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -1075,10 +1595,16 @@ function App() {
         <GameCard game={cursorGame} nextGame={nextGame} cursorDate={cursorDate} linescore={linescore} />
 
         {LORE[year] && <div className="lore">"{LORE[year]}"</div>}
-        {sea && <MoodMeter mood={mood} zone={zone} reality={reality} />}
+        {sea && <MoodMeter mood={mood} zone={zone} reality={reality} october={october}
+          onExplain={() => setShowAbout(true)} />}
 
         {/* Playoff panel — between feelings meter and the standings chart */}
-        {playoffRuns.length > 0 && <PlayoffPanel runs={playoffRuns} year={year} madePlayoffs={madePlayoffs} />}
+        {playoffRuns.length > 0 &&
+          <PlayoffPanel runs={playoffRuns} year={year} madePlayoffs={madePlayoffs} cursorDate={cursorDate}
+            onJump={date => {
+              const i = timeline.findIndex(e => e.date === date);
+              if (i >= 0) setCursor(i);
+            }} />}
 
         <div className="sh">
           <span className="st">AL West Standings Race · {year}</span>
@@ -1086,7 +1612,7 @@ function App() {
         </div>
         <div className="legend">
           {teams.map(t => (
-            <div key={t.id} className="leg" style={{ color: t.sea ? t.color : "#5a7a90" }}>
+            <div key={t.id} className="leg" style={{ color: t.sea ? "var(--accent-ink)" : "var(--ink-dim)" }}>
               <div className="ll" style={{ background: t.color, opacity: t.sea ? 1 : 0.55 }} />
               {t.abbr}
             </div>
@@ -1097,20 +1623,17 @@ function App() {
           {loading && (
             <div className="loader">
               <div className="ldots"><div className="ld"/><div className="ld"/><div className="ld"/></div>
-              <div style={{ fontSize: 11, letterSpacing: 3, color: "#1a3040" }}>LOADING SEASON DATA</div>
+              <div className="loader-lbl">Loading season data</div>
             </div>
           )}
-          {!loading && error && <div className="err" style={{ color: "#907060" }}>{error}</div>}
+          {!loading && error && <div className="err" style={{ color: "var(--mark)" }}>{error}</div>}
           {!loading && !error && timeline.length === 0 && (
-            <div className="err" style={{ color: "#3a5a70", display:"flex", alignItems:"center", justifyContent:"center", minHeight:"100px" }}>
+            <div className="err" style={{ color: "var(--ink-dim)", display:"flex", alignItems:"center", justifyContent:"center", minHeight:"100px" }}>
               {year >= nowYear ? "There's always next year." : preMsg}
             </div>
           )}
           {!loading && !error && timeline.length > 0 && (
-            <>
-              <Chart timeline={timeline} teams={teams} cursor={cursor} onCursor={setCursor} />
-              <div className="drag-hint">← drag to scrub through the {year} season →</div>
-            </>
+            <Chart timeline={timeline} teams={teams} cursor={cursor} onCursor={setCursor} />
           )}
         </div>
 
@@ -1123,19 +1646,10 @@ function App() {
       </div>
 
       {/* JP badge — fixed top-right */}
-      <a href="https://jeremyperonto.com" title="jeremyperonto.com"
-        style={{position:"fixed",top:12,right:12,zIndex:9999,width:32,height:32,borderRadius:8,
-          display:"grid",placeItems:"center",background:"rgba(255,255,255,.15)",
-          backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",
-          border:"1px solid rgba(255,255,255,.25)",color:"rgba(255,255,255,.7)",
-          textDecoration:"none",fontFamily:"system-ui,sans-serif",fontWeight:700,
-          fontSize:"0.65rem",lineHeight:1,paddingTop:1,transition:"background .2s,color .2s"}}
-        onPointerEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,.3)";e.currentTarget.style.color="rgba(255,255,255,.95)";}}
-        onPointerLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,.15)";e.currentTarget.style.color="rgba(255,255,255,.7)";}}>
-        JP
-      </a>
+      <a className="jp-badge" href="https://jeremyperonto.com" title="jeremyperonto.com">JP</a>
 
       <footer>
+        <div className="wrap">
         <a href="https://jeremyperonto.com">jeremyperonto.com</a>
         &nbsp;·&nbsp;
         <a href="https://github.com/jeremyperonto/MarinersMeter">Build one for your team</a>
@@ -1145,6 +1659,7 @@ function App() {
         Data from <a href="https://www.retrosheet.org" target="_blank" rel="noopener">Retrosheet</a>
         &nbsp;and&nbsp;
         <a href="https://www.mlb.com" target="_blank" rel="noopener">MLB</a>
+        </div>
       </footer>
 
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
