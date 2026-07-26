@@ -1,27 +1,33 @@
 # Mariners Meter
 
-A Seattle Mariners fan dashboard tracking the AL West standings race — any day, any season, since 2005. Drag the cursor through any season and watch the standings, game results, playoff bracket, and fan mood meter update in real time.
+A Seattle Mariners fan dashboard tracking the AL West standings race — any day, any season, all 50 years since 1977. Drag the cursor through any season and watch the standings, game results, playoff bracket, and fan mood meter update in real time.
 
 **[View it live →](https://jeremyperonto.com/MarinersMeter/)** &nbsp;·&nbsp; **[Make one for your team →](#make-one-for-your-team)**
+
+[![Mariners Meter — October 8, 2022, the night the drought ended](docs/screenshot.jpg)](https://jeremyperonto.com/MarinersMeter/)
 
 ---
 
 ## What it does
 
-- **AL West standings chart** — smooth Catmull-Rom curves tracking games back over an entire season, 2005 to present
+- **Every season since 1977** — the full franchise, expansion year to today. 41,521 games in the database.
+- **AL West standings chart** — smooth Catmull-Rom curves tracking games back over an entire season
 - **Draggable time cursor** — scrub through any date in any season; the game card, standings table, and season record all update live
+- **Fan Feelings Meter** — a mood score from win percentage, games back, recent form, streak, and playoff outcome, with a second needle showing the expected record from run differential
+- **An October register** — scrub into the postseason and the meter switches to series state: up 2–0, facing elimination, won the round
 - **Game card** — shows the result (or upcoming time) for every regular season and postseason game on the cursor date
-- **Fan Feelings Meter** — a mood score calculated from win percentage, games back, recent form, and playoff outcome
-- **Postseason panel** — series-by-series results for every Mariners playoff run
+- **Postseason panel** — series-by-series results that fill in as the cursor passes each game
 - **Season lore** — a factual defining moment or milestone for notable years
 - **Live game polling** — when today's game is in progress, scores update every 20 seconds via the MLB Stats API
-- **2026 empty state** — *"There's always next year."*
+- **Day and night themes** — follows your system setting, with a switch in the header. [How it works](#themes)
 
 ---
 
 ## About & suggest an improvement (on the page)
 
-The live page has an **About & suggest an improvement** link in the footer. It opens a modal that explains the project, names the public data sources, links "Make one for your team" (below), and takes bug reports and feature requests — either as a prefilled GitHub issue or a prompt you can hand to your own AI. Email fallback: jeremy@peronto.com.
+The live page has an **About & suggest an improvement** link in the footer. The modal covers where the data comes from (and which half took work), defines the Pythagorean math behind the meter's "Expected" needle, and links "Make one for your team" (below).
+
+It also takes bug reports and feature requests three ways: a prefilled GitHub issue, a prompt you can paste into your own AI, or email to jeremy@peronto.com. The copy buttons fall back to `execCommand` and then to selecting the text if the browser blocks clipboard access, so they never fail silently.
 
 ---
 
@@ -33,9 +39,38 @@ This is a single self-contained HTML file. No build step, no npm, no framework i
 |---|---|---|
 | UI | React 18 + Babel (CDN) | No build toolchain, deploys as a static file |
 | Data | MLB Stats API (unauthenticated) | Free, reliable, covers 2005–present |
-| Storage | Supabase (Postgres) | One-time ingestion of 2005–present; nightly refresh for current season |
+| History | Retrosheet game logs | Covers 1977–2004, where the MLB API stops |
+| Storage | Supabase (Postgres) | One-time ingestion of both sources; nightly refresh for current season |
 | Hosting | GitHub Pages | Free static hosting, deploys on push |
 | Fonts | Exo 2, Barlow Condensed, Libre Baskerville (Google Fonts) | Sporty display + readable body + italic flavor text |
+| Theming | CSS custom properties on `<html data-theme>` | Two themes from one stylesheet, no JS repaint |
+
+---
+
+## Themes
+
+Two themes, one ballpark. Night is a game under the lights. Day is a 1:10 first pitch with the roof open. Seattle daylight is cool and bright, so the light ground is pale sky.
+
+**How it works.** Every color in the app is a CSS custom property defined twice in the `<head>` of `index.html`: once under `:root` for night, once under `:root[data-theme="day"]`. Nothing in the stylesheet or the components holds a raw hex value. Switching themes changes one attribute on `<html>` and the browser repaints.
+
+```css
+:root                    { --bg:#03101f; --ink:#cfe3f0; --accent-ink:#00B5AC; … }
+:root[data-theme="day"]  { --bg:#eef3f7; --ink:#0d2233; --accent-ink:#00726C; … }
+```
+
+**Contrast floors are part of the token names.** Three text tokens, each with a job and a measured minimum in both themes:
+
+| Token | Used for | Floor |
+|---|---|---|
+| `--ink` | body text, numbers | ≥ 12:1 |
+| `--ink-dim` | labels, units, column headers | ≥ 7:1 |
+| `--ink-faint` | hints, footer, the quietest text | ≥ 4.6:1 |
+
+`--ink-faint` is the dimmest value allowed to carry a word. Borders and rules use `--line`, which has no floor because it carries no text. There are two accent tokens for the same reason: `--accent` is the club teal for chart strokes and fills, and `--accent-ink` is a contrast-safe version for type — `#00B5AC` reads 7.5:1 on the night ground and 2.3:1 on the day ground, so text needs its own value.
+
+**Picking a theme.** On first visit the page follows `prefers-color-scheme` and keeps following it as you change your system setting. The switch in the header overrides that and saves to `localStorage` under `mm-theme`; from then on, your choice wins.
+
+**No flash.** A short script in `<head>` reads `localStorage`, falls back to the media query, and stamps `data-theme` on `<html>` before the first paint. React mounts too late to do this — putting it in a component produces a dark flash on a light theme.
 
 ---
 
@@ -50,9 +85,13 @@ The app makes these calls:
 - `schedule?sportId=1&season=YEAR&teamId=136&gameType=F,D,L,W` — Mariners postseason
 - `game/{gamePk}/linescore` — live inning-by-inning data, polled every 20s during live games
 
+### History before 2005: Retrosheet
+
+The MLB Stats API does not reliably cover seasons before 2005. Everything from 1977 through 2004 comes from [Retrosheet](https://www.retrosheet.org) game log CSVs, parsed by `retrosheet-ingest.js` and normalized into the same `games` table as the MLB API rows. Once ingested, the app reads both eras identically — nothing in `index.html` knows which source a season came from. See [How pre-2005 works](#how-pre-2005-works-already-built).
+
 ### Caching layer: Supabase
 
-All completed game data (2005 through end of last season) is stored in Supabase and served from there instead of the MLB API. This eliminates redundant upstream calls for historical seasons that will never change.
+All completed game data — 1977 through the end of last season, 41,521 rows — is stored in Supabase and served from there instead of the MLB API. This eliminates redundant upstream calls for historical seasons that will never change.
 
 **Schema** (`schema.sql`):
 ```sql
@@ -72,7 +111,8 @@ Row Level Security is enabled. Public reads are open; writes require the service
 **One-time backfill** (run locally, takes ~5 minutes):
 ```bash
 npm install @supabase/supabase-js
-SUPABASE_SERVICE_KEY=your_service_role_key node ingest.js
+SUPABASE_SERVICE_KEY=your_service_role_key node ingest.js          # 2005–present, MLB API
+SUPABASE_SERVICE_KEY=your_service_role_key node retrosheet-ingest.js  # 1977–2004, Retrosheet
 ```
 
 **Nightly refresh** (GitHub Actions, runs at 1am Pacific):
@@ -84,7 +124,7 @@ The service role key is stored in GitHub Secrets (`SUPABASE_SERVICE_KEY`). The p
 
 ### What's not in Supabase
 
-Live linescore data is never cached — it's always fetched direct from the MLB API since it changes pitch by pitch. Pre-2005 data does not exist in this project; the MLB Stats API does not reliably cover years before 2005, and Retrosheet integration (which would unlock 1977–2004) was intentionally deferred as a future project.
+Live linescore data is never cached. It's fetched direct from the MLB API on every poll, since it changes pitch by pitch.
 
 ---
 
@@ -92,10 +132,11 @@ Live linescore data is never cached — it's always fetched direct from the MLB 
 
 | Era | Teams |
 |---|---|
-| 1994–2012 | SEA, OAK, LAA, TEX |
+| 1977–1993 | SEA, OAK, CAL, TEX, MIN, CHW, KCR |
+| 1994–2012 | SEA, OAK, CAL/ANA/LAA, TEX |
 | 2013–present | SEA, OAK/ATH, LAA, TEX, HOU |
 
-The Athletics are abbreviated `ATH` for 2024 onward (Las Vegas era) and `OAK` for prior seasons.
+The division was seven teams deep before the 1994 realignment. The Angels are abbreviated `CAL` through 1996, `ANA` from 1997, and `LAA` from 2005. The Athletics are `OAK` through 2023 and `ATH` from 2024 (Las Vegas era). Team IDs never change — only the abbreviations do, which is why `TEAMS_BY_YEAR` in `index.html` takes a year.
 
 ---
 
@@ -105,7 +146,9 @@ The Athletics are abbreviated `ATH` for 2024 onward (Las Vegas era) and `OAK` fo
 index.html              — the entire app; deploy this file
 favicon.svg             — compass rose in teal on navy
 schema.sql              — run once in Supabase SQL Editor
-ingest.js               — MLB API → Supabase ingestion script
+ingest.js               — MLB API → Supabase (2005–present)
+retrosheet-ingest.js    — Retrosheet game logs → Supabase (1977–2004)
+LICENSE                 — MIT
 .github/
   workflows/
     refresh.yml         — nightly GitHub Actions job
@@ -116,14 +159,17 @@ README.md               — this file
 
 ## Deployment
 
-1. Create a [Supabase](https://supabase.com) project (free tier is sufficient — the dataset is ~5MB)
-2. Run `schema.sql` in the Supabase SQL Editor
-3. Run the one-time backfill: `SUPABASE_SERVICE_KEY=... node ingest.js`
-4. Push the repo to GitHub and enable GitHub Pages (Settings → Pages → Deploy from branch → `main`)
-5. Add `SUPABASE_SERVICE_KEY` to GitHub Secrets (Settings → Secrets and variables → Actions)
-6. The nightly Action will keep the current season fresh
+This is what a full rebuild of Mariners Meter looks like. If you want a version for another team and don't write code, use [the no-code path](#start-here-you-dont-have-to-write-code) instead.
 
-The publishable Supabase key can live in `index.html` safely.
+1. Create a [Supabase](https://supabase.com) project — free tier is sufficient, the dataset is ~5MB
+2. Open the SQL Editor and run `schema.sql`
+3. Backfill 2005–present from the MLB API: `SUPABASE_SERVICE_KEY=... node ingest.js`
+4. Backfill 1977–2004 from Retrosheet: `SUPABASE_SERVICE_KEY=... node retrosheet-ingest.js`
+5. Push the repo to GitHub and enable GitHub Pages (Settings → Pages → Deploy from a branch → `main` → `/ (root)`)
+6. Add `SUPABASE_SERVICE_KEY` to GitHub Secrets (Settings → Secrets and variables → Actions)
+7. The nightly Action keeps the current season fresh
+
+Steps 3 and 4 each take a few minutes and only run once. The publishable Supabase key can live in `index.html` safely — it's rate-limited and Row Level Security blocks writes.
 
 ---
 
@@ -139,26 +185,90 @@ The publishable Supabase key can live in `index.html` safely.
 
 **Factual lore over clever editorializing.** Season lore strings prioritize specific dates, verified records, and real events over witty takes. Errors in historical data (wrong year, wrong win total, wrong finish position) undermine trust in the whole dashboard.
 
+**Semantic tokens, no literals.** Colors are named for the job they do: `--ink-dim`, `--surface-sunk`, `--accent-ink`. Two themes then cost one extra block of values instead of a parallel stylesheet, and the contrast floor lives in the token name so it survives future edits. Club colors in `TEAMS_BY_YEAR` stay hardcoded — those belong to the teams and should read the same in both themes.
+
+**Eight type sizes.** The page had accumulated seventeen, from 8px to 54px, none of them chosen against the others. The scale is now eight tokens that shrink together at phone width, so proportions hold instead of each rule needing its own mobile override.
+
+**The meter counts making the playoffs.** Games back used to dominate the mood score, which meant 2022 — a 90-win team that swept Toronto and ended a 21-year drought 16 games behind a 106-win Houston — scored `COMPLETE DESPAIR`, the same zone as the 61-101 2010 team. The wild card made division deficit a poor proxy for how a season felt. Qualifying is now worth more than the elimination that always follows it, and the deficit penalty caps hard once a team is in. The rule the numbers have to satisfy: no playoff season may score below a season that missed.
+
+Calibration table, read at the end-of-season cursor:
+
+| Season | Record | Outcome | Reads |
+|---|---|---|---|
+| 2001 | 116–46 | Lost ALCS | `BELIEVE` |
+| 1995 | 79–66 | Won division, lost ALCS | `BELIEVE` |
+| 2025 | 90–72 | Won division, ALCS Game 7 | `BELIEVE` |
+| 2022 | 90–72 | Wild Card sweep, lost ALDS | `DARING TO DREAM` |
+| 2003 | 93–69 | Missed | `THE USUAL` |
+| 2018 | 89–73 | Missed by three | `DISAPPOINTED` |
+| 1991 | 83–79 | First winning season | `DISAPPOINTED` |
+| 2010 | 61–101 | Missed | `COMPLETE DESPAIR` |
+
+**Both needles are labeled in the open.** The second needle shows the expected record — what the run differential points to. Which needle meant what used to live in a hover tooltip, invisible on touch and overlapping the card above it on desktop. The needle glyphs now sit inline with the numbers under the gauge, permanently, and the tooltip is gone.
+
+**October is its own register.** Postseason dates are appended to the timeline with standings frozen at the September finale, so a mood computed from the record would be reading September all month. When the cursor crosses into the postseason the meter switches to series state — up 2–0, facing elimination, won the round — and relabels itself. The regular-season record, the chart, and the timeline are untouched, which is what made this safe to add: the postseason entries were already tagged `isPlayoff`, so nothing else had to move. The final date hands back to the season verdict, so the calibration table above still holds.
+
+**The postseason panel keeps its shape.** Every round, opponent, and game slot renders at every cursor position; results fill in as the cursor passes their dates. One slot per possible game in the format, so a best-of-five always shows five. Nothing appears or disappears, so the page never jumps mid-drag — the same reason the game card uses `visibility: hidden`. There's nothing to hide anyway: the season lore states the outcome. The point is that October moves.
+
 ---
 
 ## Known limitations
 
-- **2005 onward only.** Pre-2005 Retrosheet integration was designed but never implemented.
 - **No doubleheader disambiguation.** On days with two games, the card shows the last game played (`.at(-1)`).
 - **2020 season is unannotated.** The COVID 60-game season has no special handling or visual asterisk.
+- **Season lore states the outcome from opening day.** The italic quote under the game card summarizes the whole year, so scrubbing through April already tells you how it ended. Left visible on purpose: you picked the season from a dropdown, and hiding it changes the page height mid-drag.
+- **Mood is tuned to one franchise.** The thresholds were calibrated against 50 Mariners seasons. A fork should re-check them against its own club's history — the table in Design decisions is the test.
+- **October is hard to drag to.** Five postseason dates against 162 regular-season ones puts them in the last few pixels of the chart. Clicking a game chip in the postseason panel jumps the cursor there instead, which is the practical way in.
 - **Single-user cache.** localStorage was evaluated and rejected in favor of Supabase. Each visitor's browser was going to make the same MLB API calls anyway — a shared server-side cache is the right solution.
 
 ---
 
 ## Make one for your team
 
-This project is open source. You can build a version for any MLB team. There are two approaches depending on how far back you want to go and how much infrastructure you want to set up.
+This project is MIT licensed. Build a version for any MLB team.
 
 **[Fork this repo →](https://github.com/jeremyperonto/MarinersMeter)**
 
 ---
 
-### Choose your path
+### Start here: you don't have to write code
+
+This is one HTML file. Changing it to another team means swapping a team ID, a division, some colors, and the season notes. An AI coding assistant can do all of it, and you can check the result in your browser before anything goes live.
+
+**What you need:** a free [GitHub](https://github.com) account (where the code lives), and [Claude](https://claude.ai) or [ChatGPT](https://chatgpt.com) — the free tiers work.
+
+1. **Make your own copy.** Go to [the repo](https://github.com/jeremyperonto/MarinersMeter) and click **Fork** at the top right, then **Create fork**. You now have your own copy at `github.com/YOUR-USERNAME/MarinersMeter`.
+2. **Turn on the website.** In your copy, click **Settings** → **Pages** in the left sidebar → under "Build and deployment" set Source to **Deploy from a branch**, branch **main**, folder **/ (root)** → **Save**. In a minute or two your site is live at `YOUR-USERNAME.github.io/MarinersMeter`.
+3. **Hand it to the AI.** Open Claude or ChatGPT and paste this, filling in the brackets:
+
+   ```
+   I forked this open-source baseball dashboard and want to change it from the
+   Seattle Mariners to the [YOUR TEAM]:
+   https://github.com/YOUR-USERNAME/MarinersMeter
+
+   Everything lives in one file, index.html. Please tell me exactly what to
+   change, or give me the edited file:
+
+   - The team, the division, and every team in that division
+   - Team IDs from the MLB Stats API (statsapi.mlb.com/api/v1/teams?sportId=1)
+   - The colors — they're CSS variables named --accent and --accent-ink near
+     the top of the file, defined twice, once per theme. Check the new color
+     passes 4.5:1 contrast on both the dark and light backgrounds.
+   - The season notes (the LORE section) for [YOUR TEAM]'s notable years
+   - The page title and the footer credit
+
+   Leave the other teams' brand colors alone. I'm not a developer, so tell me
+   where to click.
+   ```
+
+4. **Paste the result back.** In your fork, open `index.html`, click the pencil ✏️ icon, replace the contents, and click **Commit changes**. Your site updates in about a minute.
+5. **Look at it.** Visit your page. If something's wrong, tell the AI what you see and paste the file back again.
+
+That version covers 2005 to today, which is what the free MLB API provides and what most people want. Going back further needs a database — that's [Option B](#option-b-api--database-recommended) below.
+
+---
+
+### If you do write code, choose your path
 
 #### Option A: API-only (simplest)
 
@@ -169,7 +279,7 @@ Call the MLB Stats API directly from your HTML file. No database, no backend, no
 
 **What you need:**
 1. Fork this repo
-2. Update `index.html` — replace team IDs, division teams, colors, lore, and team name
+2. Update `index.html` — team IDs, division teams, lore, team name, and the color tokens ([how](#recoloring-for-your-club))
 3. Remove the Supabase code and have all seasons fetch from the MLB API directly
 4. Deploy to GitHub Pages
 
@@ -181,22 +291,47 @@ Cache completed seasons in a database so only the current season hits the MLB AP
 - **Supabase** (free Postgres) — what this project uses. Shared cache across all visitors. Requires a nightly GitHub Action to refresh the current season.
 - **localStorage** — no server needed, but each visitor builds their own cache on first visit. Good enough for a personal project.
 
+[Supabase](https://supabase.com) is a hosted Postgres database with a free tier. The whole dataset is about 5MB, so free covers it with room to spare.
+
 **What you need:**
 1. Fork this repo
 2. Find your team's MLB ID — `statsapi.mlb.com/api/v1/teams?sportId=1` lists all 30 teams
 3. Find your division's teams and their IDs
-4. Create a [Supabase](https://supabase.com) project (free tier is fine — the dataset is ~5MB) and run `schema.sql`
-5. Update `index.html` — replace team IDs, division teams, colors, lore, and team name
+4. Create a Supabase project, open the **SQL Editor** in the sidebar, paste in `schema.sql`, and run it — that creates the one table this needs
+5. Update `index.html` — team IDs, division teams, lore, team name, and the color tokens ([how](#recoloring-for-your-club))
 6. Run the one-time backfill: `SUPABASE_SERVICE_KEY=... node ingest.js`
-7. Push to GitHub and enable GitHub Pages
-8. Add `SUPABASE_SERVICE_KEY` to GitHub Secrets
+7. Push to GitHub and enable GitHub Pages (**Settings** → **Pages** → Deploy from a branch → `main` → `/ (root)`)
+8. Add `SUPABASE_SERVICE_KEY` to GitHub Secrets (**Settings** → **Secrets and variables** → **Actions** → **New repository secret**). Your service role key is in Supabase under **Project Settings** → **API**
 9. The nightly GitHub Action keeps the current season fresh automatically
 
 #### Option C: API + Retrosheet + database (full history)
 
-Combine MLB Stats API data (2005–present) with Retrosheet game logs (1977–2004 or earlier) for complete franchise history. Requires Option B's database setup plus a one-time Retrosheet ingestion.
+Combine MLB Stats API data (2005–present) with Retrosheet game logs (1977–2004 or earlier) for your club's complete history. This is how Mariners Meter works — Option B's database setup plus one more ingestion run.
 
-See [Extending to pre-2005 with Retrosheet](#extending-to-pre-2005-with-retrosheet) below.
+See [How pre-2005 works](#how-pre-2005-works-already-built) below.
+
+---
+
+### Recoloring for your club
+
+Every color lives in the two token blocks in the `<head>` of `index.html`. Edit the values there and the whole app follows.
+
+**1. Swap the accent.** Four tokens carry your club color:
+
+```css
+:root                    { --accent:#00B5AC; --accent-ink:#00B5AC; --accent-soft:rgba(0,181,172,.10); --accent-mid:rgba(0,181,172,.22); }
+:root[data-theme="day"]  { --accent:#00B5AC; --accent-ink:#00726C; --accent-soft:rgba(0,114,108,.08);  --accent-mid:rgba(0,114,108,.20); }
+```
+
+`--accent` is for graphics — chart strokes, fills, the cursor dot. `--accent-ink` is for text. They differ in the day theme on purpose: club colors are picked to look good on a jersey, and most of them wash out as type on a pale ground.
+
+**2. Check the accent against both grounds.** Paste your hex and the two background values into any contrast checker ([WebAIM's](https://webaim.org/resources/contrastchecker/) is fine). Text needs **4.5:1**. If your color fails on the day ground — most bright club colors do — darken it until it passes and use that as `--accent-ink` only. Teal `#00B5AC` is 7.5:1 on the night ground and 2.3:1 on the day ground, which is exactly why there are two tokens.
+
+**3. Leave `TEAMS_BY_YEAR` alone.** Those hex values are the other clubs' real colors and should stay literal in both themes. If a division rival's color washes out on the light ground, raise `--team-op` rather than changing their color.
+
+**4. Adjust the mood ramp if you want.** `--mood-0` through `--mood-6` are the gauge gradient, and `--zone-0` through `--zone-6` are the readout text colors. The defaults run red to teal and work for most clubs; if yours is red, rotate the happy end toward your color and leave the despair end alone.
+
+Nothing else needs touching. The neutrals (`--ink`, `--surface`, `--line`) are club-agnostic and already meet their contrast floors.
 
 ---
 
@@ -310,7 +445,7 @@ You can compute this from the `leagueRecord` fields in each game, or calculate i
 
 #### Caveats
 
-- **Data only goes back to 2005.** Earlier seasons have incomplete or unreliable data. For older history, use Retrosheet.
+- **This API only goes back to 2005.** Earlier seasons have incomplete or unreliable data. Retrosheet covers everything before that — see [How pre-2005 works](#how-pre-2005-works-already-built).
 - **No authentication required** — but there is also no documented SLA or rate limit. Be polite: add a delay between batch requests (this project uses 350ms).
 - **Filter out spring training.** Always specify `gameType=R` for regular season data. Spring training games (`gameType=S`) will appear in unfiltered queries.
 - **The Athletics changed abbreviations** from `OAK` to `ATH` in 2024 (Las Vegas move). Their `teamId` (133) did not change.
@@ -331,11 +466,11 @@ Find your division's teams at `statsapi.mlb.com/api/v1/teams?sportId=1`. Here ar
 
 ---
 
-### Extending to pre-2005 with Retrosheet
+### How pre-2005 works (already built)
 
-The MLB Stats API doesn't reliably cover seasons before 2005. To go back to a team's founding year, you need [Retrosheet](https://www.retrosheet.org).
+The MLB Stats API doesn't reliably cover seasons before 2005. Everything from 1977 to 2004 comes from [Retrosheet](https://www.retrosheet.org) instead, via `retrosheet-ingest.js` in this repo. It runs once and it's done.
 
-Retrosheet distributes free game log CSV files covering every MLB game since the 19th century. The data is available at `retrosheet.org/downloads/` in a standardized format. Each row is one game with ~160 fields including date, teams, score, and attendance.
+Retrosheet distributes free game log CSV files covering every MLB game since the 19th century, at `retrosheet.org/downloads/`. Each row is one game with ~160 fields including date, teams, score, and attendance.
 
 **What Retrosheet gives you that the MLB API doesn't:**
 - Complete game-by-game results from 1871 to present
@@ -343,35 +478,32 @@ Retrosheet distributes free game log CSV files covering every MLB game since the
 - Enough data to compute cumulative win-loss records yourself
 
 **What Retrosheet does NOT give you:**
-- Cumulative records (you compute these from the game-by-game results)
-- The same field names or structure as the MLB API (you normalize them)
-- Live data (Retrosheet is updated after the season ends)
+- Cumulative records — `retrosheet-ingest.js` computes these from the game-by-game results
+- The same field names or structure as the MLB API — the script normalizes them into the `games` schema
+- Live data — Retrosheet is updated after the season ends, which is why the current season still comes from the MLB API
 
-**The engineering work required:**
-1. Download the game log CSV files for your target years (`gl{YEAR}.zip`)
-2. Write a parser that maps Retrosheet's team abbreviations (e.g., `SEA`, `OAK`, `CHA`) to MLB team IDs
-3. Calculate cumulative win-loss records from the raw game-by-game results
-4. Normalize the data into the same schema as your database `games` table
-5. Handle division realignment — most divisions changed composition over the decades
-6. Ingest it alongside the MLB Stats API data
+**What the script does:**
+1. Downloads the game log CSV files for the target years (`gl{YEAR}.zip`)
+2. Maps Retrosheet's team abbreviations (`SEA`, `OAK`, `CHA`) to MLB team IDs
+3. Calculates cumulative win-loss records from the raw results
+4. Writes rows matching the same `games` table the MLB API path uses
+5. Handles division realignment — the AL West was seven teams before 1994
 
-This repo includes `retrosheet-ingest.js` as a reference implementation for the Mariners and AL West (1977–2004).
+**Adapting it to your club.** The parts to change are the team ID map and the era handling. Run it as-is first with your years to see the shape of the output:
 
-**Suggested prompt when you're ready:**
+```bash
+SUPABASE_SERVICE_KEY=... node retrosheet-ingest.js
+```
+
+If your division's history is more tangled than the AL West's — an expansion team, a league switch, a franchise relocation — that's the part worth handing to an AI with the file open:
 
 ```
-I want to extend my team dashboard to cover [TEAM]'s full history back
-to [FOUNDING YEAR]. The MLB Stats API only reliably covers 2005+.
-Retrosheet has game log CSVs covering everything before that.
+Here's retrosheet-ingest.js, which backfills 1977–2004 for the Mariners
+and the AL West. Adapt it for [TEAM] back to [FOUNDING YEAR].
 
-Please:
-1. Research the Retrosheet game log CSV format
-2. Identify the relevant team abbreviations for [TEAM] and all
-   [DIVISION] teams across the relevant era(s)
-3. Write a parser that reads the CSV files and outputs rows matching
-   our existing database schema
-4. Handle any division realignment — [DIVISION] had different members
-   in [RELEVANT ERA]
+[DIVISION] had different members in [ERA] — handle the realignment, and
+map the Retrosheet abbreviations for every team that was ever in it.
+Output rows matching the existing games schema. Don't change the schema.
 ```
 
 ---
@@ -398,8 +530,8 @@ The following prompts replicate what was used to build Mariners Meter. Adapt the
 ```
 I want to build a fan dashboard for the [TEAM NAME] that tracks the
 [DIVISION NAME] standings race over time. I want to be able to scrub
-through any season from 2005 to the present and see where [TEAM] stood
-relative to the rest of the division on any given date.
+through any season from [FOUNDING YEAR] to the present and see where
+[TEAM] stood relative to the rest of the division on any given date.
 
 Before building anything, please:
 1. Research what free APIs exist for MLB historical data
@@ -520,6 +652,72 @@ My Supabase project URL is: [YOUR URL]
 My publishable key is: [YOUR PUBLISHABLE KEY]
 ```
 </details>
+
+<details>
+<summary><strong>Session 8 — Day/night themes and the token layer</strong></summary>
+
+```
+Add a light theme. Before that works, every color has to become a token —
+right now they're all hardcoded hex and rgba scattered through the CSS
+string, the SVG chart, and JSX inline styles.
+
+1. Define semantic tokens in the <head> style block, twice: once under
+   :root for the dark theme, once under :root[data-theme="day"]. Name
+   them for the job they do (--ink-dim, --surface-sunk, --accent-ink),
+   not the color they are.
+2. Replace every literal with var(). Leave the other clubs' brand colors
+   hardcoded — those aren't theme values.
+3. Text tokens carry contrast floors: --ink >= 12:1, --ink-dim >= 7:1,
+   --ink-faint >= 4.6:1 in BOTH themes. Measure them, don't estimate.
+   My accent fails on a light ground, so it needs a separate text value.
+4. The light theme is not an inversion. [DESCRIBE YOUR CONCEPT — mine was
+   "a day game with the roof open," so the ground is pale sky, not cream.]
+5. Toggle in the header. Follow prefers-color-scheme until the visitor
+   picks one, then save to localStorage and let their choice win.
+6. Set data-theme in a <head> script before first paint. React mounts too
+   late and you get a flash of the wrong theme.
+
+Then audit contrast across both themes and show me anything under 4.5:1.
+```
+</details>
+
+<details>
+<summary><strong>Session 9 — The October register</strong></summary>
+
+```
+Scrubbing into the postseason currently reads September. The playoff dates get
+appended to the timeline with standings frozen at the regular-season finale, so
+the mood meter is computing from a record that stopped changing, and the
+postseason panel shows every result from opening day.
+
+Add a second register for October, without touching the regular-season record,
+the chart, or how the timeline is built:
+
+1. The postseason timeline entries are already tagged isPlayoff — gate on that.
+2. Write a mood function driven by series state as of the cursor date: round
+   reached, rounds won, and whether they're up, down, facing elimination,
+   have clinched, or are out. Derive the series format from the winner's total
+   (a best-of-7 ending 4-2 means 4 wins were needed).
+3. Keep the FINAL date on the existing season-summary mood so my end-of-season
+   calibration table doesn't move. October is how it felt while it happened;
+   the last game is the verdict.
+4. Floor it: no October reading may drop below a season that missed entirely.
+5. The panel keeps every round, opponent, and game slot at every cursor
+   position and fills results in as the cursor passes — one slot per possible
+   game in the format. Structure never changes, so the page can't jump.
+6. The postseason is ~5 dates against 162, so dragging to it is a pixel hunt.
+   Make the game chips click to jump the cursor there.
+
+Then walk the cursor through every playoff date of [A DEEP RUN YEAR] and show
+me the reading at each one, plus confirm the panel height never changes.
+```
+</details>
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE). Use it however you like, including commercially.
 
 ---
 
