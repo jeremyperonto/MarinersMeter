@@ -1,14 +1,14 @@
 {
   "name": "marinersmeter",
   "version": "1.0.0",
-  "description": "A Seattle Mariners fan dashboard tracking the AL West standings race — any day, any season, since 2005. Drag the cursor through any season and watch the standings, game results, playoff bracket, and fan mood meter update in real time.",
+  "description": "A Seattle Mariners fan dashboard tracking the AL West standings race — any day, any season, since 1977. Drag the cursor through any season and watch the standings, game results, playoff bracket, and fan mood meter update in real time.",
   "main": "ingest.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["baseball", "mlb", "standings", "dashboard", "seattle-mariners", "retrosheet", "mlb-stats-api"],
+  "author": "Jeremy Peronto",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
