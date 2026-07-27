@@ -172,14 +172,25 @@ async function getDefaultYear() {
   return now - 1;
 }
 
-function getTodayCursorIdx(tl) {
+// The index the cursor should sit on when a season opens.
+//
+//   in progress  -> today (the latest date that has actually happened)
+//   completed    -> the last regular-season game, so the date on the standings
+//                   panel and the season record agree. October is somewhere you
+//                   go on purpose, not where you land.
+//
+// Scans the whole array rather than stopping at the first future date, so a
+// single out-of-order entry can't strand the cursor near opening day.
+function seasonCursorIdx(tl) {
   if (!tl.length) return 0;
   const today = TODAY();
-  let best = 0;
+  let lastReg = -1, lastPast = -1;
   for (let i = 0; i < tl.length; i++) {
-    if (tl[i].date <= today) best = i; else break;
+    if (!tl[i].isPlayoff) lastReg = i;
+    if (tl[i].date <= today) lastPast = i;
   }
-  return best;
+  const idx = lastReg >= 0 ? Math.min(lastReg, lastPast >= 0 ? lastPast : lastReg) : lastPast;
+  return idx >= 0 ? idx : tl.length - 1;
 }
 
 function fmtGameTime(isoStr) {
@@ -321,6 +332,9 @@ async function getTeamGames(teamId, year) {
     }));
   }
   const r = await fetch(`${API}/schedule?sportId=1&season=${year}&teamId=${teamId}&gameType=R`);
+  // A non-OK response still parses as JSON, and `d.dates ?? []` would then
+  // quietly render a partial season as if it were the whole thing.
+  if (!r.ok) throw new Error(`MLB API ${r.status} for team ${teamId}`);
   const d = await r.json();
   return (d.dates ?? []).flatMap(({ games }) =>
     games.filter(g => g.status.abstractGameState === "Final").map(g => {
@@ -365,7 +379,8 @@ async function getSeaFullSchedule(year) {
     fetch(`${API}/schedule?sportId=1&season=${year}&teamId=${SEA_ID}&gameType=R&hydrate=team`),
     fetch(`${API}/schedule?sportId=1&season=${year}&teamId=${SEA_ID}&gameType=F,D,L,W&hydrate=team`),
   ]);
-  const [regD, poD] = await Promise.all([regR.json(), poR.json()]);
+  if (!regR.ok) throw new Error(`MLB API ${regR.status} for the schedule`);
+  const [regD, poD] = await Promise.all([regR.json(), poR.ok ? poR.json() : Promise.resolve({})]);
 
   function parseGames(apiDates, isPostseason) {
     return (apiDates ?? []).flatMap(({ games }) =>
@@ -485,7 +500,7 @@ function calcMood(sea, idx, total, recent, playoffRuns, inProgress) {
   // reaches "today", so idx/total is ~1.0 by July — which would fire the
   // stretch-run bonuses months early. Measure by games played / 162 instead.
   const thru = inProgress ? Math.min(1, (sea.w + sea.l) / 162) : idx / Math.max(1, total);
-  const madePlayoffs = idx >= total - 1 && playoffRuns?.length > 0;
+  const madePlayoffs = playoffRuns?.length > 0;   // caller decides when the verdict applies
   const pct = sea.w / (sea.w + sea.l);
   // How good the team is has to outweigh how far back it sits, or every season
   // more than ~9 games out flattens into the same zone regardless of record —
@@ -1456,6 +1471,7 @@ function App() {
   const [showAbout, setShowAbout]  = useState(false);
   const [theme, toggleTheme]       = useTheme();
   const liveRef   = useRef(null);
+  const loadRef   = useRef(0);
   const preMsg    = useMemo(() => PRE_SEASON[Math.floor(Math.random() * PRE_SEASON.length)], []);
   const nowYear   = new Date().getFullYear();
   const yearOpts  = useMemo(() => Array.from({ length: nowYear - 1976 }, (_, i) => nowYear - i), []);
@@ -1464,6 +1480,7 @@ function App() {
 
   useEffect(() => {
     if (year === null) return;
+    const runId = ++loadRef.current;
     const divTeams = TEAMS_BY_YEAR(year);
     setTeams(divTeams);
     setTl([]); setPoRuns([]); setMadeP(false); setError("");
@@ -1474,6 +1491,10 @@ function App() {
       getPlayoffGames(SEA_ID, year),
       getSeaFullSchedule(year),
     ]).then(([pairs, po, sched]) => {
+      // A year change fires a new load without cancelling the old one. Whichever
+      // resolves last used to win, so a slow response for a year you already
+      // left could overwrite the one on screen.
+      if (loadRef.current !== runId) return;
       let tl = buildTimeline(Object.fromEntries(pairs));
       // Append one entry per playoff game date (standings frozen at regular season end)
       // so the cursor can scrub into the postseason and show those games in the card.
@@ -1497,13 +1518,13 @@ function App() {
         }
       }
       setTl(tl);
-      setCursor(getTodayCursorIdx(tl));
+      setCursor(seasonCursorIdx(tl));
       setPoRuns(po);
       setMadeP(po.length > 0);
       setSeaByDate(sched.byDate);
       setNextGame(sched.next);
-    }).catch(e => setError("Unable to load season data — " + e.message))
-      .finally(() => setLoading(false));
+    }).catch(e => { if (loadRef.current === runId) setError("Unable to load season data — " + e.message); })
+      .finally(() => { if (loadRef.current === runId) setLoading(false); });
   }, [year]);
 
   const today      = TODAY();
@@ -1524,6 +1545,14 @@ function App() {
   const pt    = timeline[cursor];
   const sea   = pt?.standings[SEA_ID];
   const atEnd = cursor >= timeline.length - 1;
+  // Where the regular season ends. The season's verdict is read here as well
+  // as at the very last date, so opening a completed year shows the verdict
+  // even though the cursor now lands before October rather than after it.
+  const regEndIdx = useMemo(() => {
+    for (let i = timeline.length - 1; i >= 0; i--) if (!timeline[i].isPlayoff) return i;
+    return timeline.length - 1;
+  }, [timeline]);
+  const seasonOver = year != null && isSeasonComplete(year) && cursor >= regEndIdx;
 
   const recent = useMemo(() =>
     timeline.slice(Math.max(0, cursor - 10), cursor).map(p => p.standings[SEA_ID]?.last).filter(Boolean),
@@ -1542,8 +1571,8 @@ function App() {
   const mood = useMemo(() =>
     october
       ? calcOctoberMood(october)
-      : calcMood(sea, cursor, timeline.length, recent, atEnd ? playoffRuns : [], inProgress),
-    [october, sea, cursor, timeline.length, recent, atEnd, playoffRuns, inProgress]);
+      : calcMood(sea, cursor, timeline.length, recent, (atEnd || seasonOver) ? playoffRuns : [], inProgress),
+    [october, sea, cursor, timeline.length, recent, atEnd, seasonOver, playoffRuns, inProgress]);
 
   const zone = MOODS.find(z => mood <= z.t) ?? MOODS.at(-1);
 
@@ -1556,8 +1585,8 @@ function App() {
     }, 0);
     const seaDiff = (sea.rs ?? 0) - (sea.ra ?? 0);
     return buildReality(sea, cursor, timeline.length, recent,
-                        atEnd ? playoffRuns : [], seaDiff > 0 && posDiffs === 1, inProgress);
-  }, [sea, pt, teams, cursor, timeline.length, recent, atEnd, playoffRuns, inProgress]);
+                        (atEnd || seasonOver) ? playoffRuns : [], seaDiff > 0 && posDiffs === 1, inProgress);
+  }, [sea, pt, teams, cursor, timeline.length, recent, atEnd, seasonOver, playoffRuns, inProgress]);
 
   const sorted = useMemo(() =>
     !pt ? [] :
