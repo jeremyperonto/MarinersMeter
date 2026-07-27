@@ -683,11 +683,16 @@ const CSS = `
 .yr-range{font-size:var(--fs-micro);letter-spacing:1.5px;color:var(--ink-faint);font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
 /* Day/night switch. Sun sits left, moon right; the knob covers whichever is
    in play, so the control reads as a position rather than a label. */
-.theme-switch{background:none;border:none;padding:0;cursor:pointer;line-height:0;border-radius:999px}
-.ts-track{position:relative;display:block;width:58px;height:28px;border-radius:999px;
-  background:var(--surface-sunk);border:1px solid var(--line-strong);transition:background .2s,border-color .2s}
+.theme-wrap{display:flex;flex-direction:column;gap:3px}
+.theme-switch{display:flex;align-items:center;gap:8px;background:none;border:none;padding:0;cursor:pointer;border-radius:4px}
+.ts-word{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:var(--fs-label);
+  letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-dim);transition:color .2s}
+.theme-switch:hover .ts-word{color:var(--accent-ink)}
+.ts-track{position:relative;display:block;flex-shrink:0;width:58px;height:28px;border-radius:999px;
+  background:var(--surface);border:1px solid var(--line-strong);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.10);transition:background .2s,border-color .2s}
 .theme-switch:hover .ts-track{border-color:var(--accent-ink)}
-.ts-icon{position:absolute;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--ink-faint);transition:opacity .2s}
+.ts-icon{position:absolute;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--ink-dim);transition:opacity .2s}
 .ts-sun{left:7px}
 .ts-moon{right:7px}
 .ts-icon svg{width:13px;height:13px;display:block}
@@ -1058,7 +1063,7 @@ function ThemeToggle({ theme, onToggle }) {
   const isDay = theme === "day";
   return (
     <button type="button" className={`theme-switch${isDay ? " is-day" : ""}`}
-      role="switch" aria-checked={isDay} aria-label="Day theme"
+      role="switch" aria-checked={isDay} aria-labelledby="theme-lbl"
       title={isDay ? "Switch to night" : "Switch to day"}
       onClick={onToggle}>
       <span className="ts-track" aria-hidden="true">
@@ -1066,6 +1071,7 @@ function ThemeToggle({ theme, onToggle }) {
         <span className="ts-icon ts-moon">{MoonIcon}</span>
         <span className="ts-knob">{isDay ? SunIcon : MoonIcon}</span>
       </span>
+      <span className="ts-word">{isDay ? "Day" : "Night"}</span>
     </button>
   );
 }
@@ -1608,7 +1614,10 @@ function App() {
             <div className="sub">American League West · What it feels like to root for Seattle</div>
           </div>
           <div className="hdr-right">
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            <div className="theme-wrap">
+              <span className="yr-lbl" id="theme-lbl">Theme</span>
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            </div>
             <div className="yr-wrap">
               <label className="yr-lbl" htmlFor="season">Season</label>
               <select id="season" className="yr-sel" value={year} onChange={e => setYear(+e.target.value)}>
