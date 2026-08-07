@@ -823,8 +823,11 @@ footer a{color:var(--ink-dim);text-decoration:none;border-bottom:1px solid var(-
 footer a:hover{color:var(--accent-ink);border-color:var(--accent-ink)}
 .foot-btn{background:none;border:none;padding:0;cursor:pointer;font:inherit;color:var(--ink-dim);letter-spacing:.5px;border-bottom:1px solid var(--line-strong);transition:color .2s,border-color .2s}
 .foot-btn:hover{color:var(--accent-ink);border-color:var(--accent-ink)}
-.jp-badge{position:fixed;top:12px;right:12px;z-index:9999;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--accent-soft);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line-strong);color:var(--ink-dim);text-decoration:none;font-family:system-ui,sans-serif;font-weight:700;font-size:.65rem;line-height:1;transition:background .2s,color .2s}
-.jp-badge:hover{background:var(--accent-mid);color:var(--accent-ink)}
+/* Standard cross-project home affordance: text link pinned 24px from the right
+   viewport edge, 22px down. Color rides the theme tokens so it adapts to the
+   navy/light backgrounds. Keep in sync with jeremyperonto.com pages. */
+.home-link{position:absolute;top:22px;right:24px;z-index:9999;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:.78rem;letter-spacing:.02em;color:var(--ink-dim);text-decoration:none;transition:color .2s}
+.home-link:hover{color:var(--accent-ink)}
 .modal-overlay{position:fixed;inset:0;z-index:10000;background:var(--scrim);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:grid;place-items:center;padding:20px}
 .modal-panel{position:relative;background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 24px;box-shadow:var(--shadow);text-align:left}
 .modal-close{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--ink-dim);font-size:26px;line-height:1;cursor:pointer;padding:2px 6px;transition:color .2s;font-family:${F}}
@@ -1683,8 +1686,8 @@ function App() {
         )}
       </div>
 
-      {/* JP badge — fixed top-right */}
-      <a className="jp-badge" href="https://jeremyperonto.com" title="jeremyperonto.com">JP</a>
+      {/* Standard home affordance — top-right */}
+      <a className="home-link" href="https://jeremyperonto.com">jeremyperonto.com →</a>
 
       <footer>
         <div className="wrap">
