@@ -670,7 +670,7 @@ const CSS = `
 /* One measure. The header, the body and the footer share a left edge —
    previously the full-bleed header sat 305px off the centered content. */
 .wrap{max-width:var(--measure);margin:0 auto;width:100%;padding:0 var(--sp-4)}
-.hdr{border-bottom:1px solid var(--line);padding:var(--sp-4) 0 var(--sp-3)}
+.hdr{border-bottom:1px solid var(--line);padding:var(--sp-2) 0 var(--sp-3)}
 .hdr .wrap{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:var(--sp-3)}
 .title{font-family:${F};font-weight:800;font-size:var(--fs-title);letter-spacing:1px;color:var(--accent-ink);line-height:1;text-transform:uppercase}
 .sub{font-family:'Libre Baskerville',serif;font-style:italic;font-size:var(--fs-sm);color:var(--ink-faint);margin-top:var(--sp-1);letter-spacing:.5px}
@@ -823,10 +823,13 @@ footer a{color:var(--ink-dim);text-decoration:none;border-bottom:1px solid var(-
 footer a:hover{color:var(--accent-ink);border-color:var(--accent-ink)}
 .foot-btn{background:none;border:none;padding:0;cursor:pointer;font:inherit;color:var(--ink-dim);letter-spacing:.5px;border-bottom:1px solid var(--line-strong);transition:color .2s,border-color .2s}
 .foot-btn:hover{color:var(--accent-ink);border-color:var(--accent-ink)}
-/* Standard cross-project home affordance: text link pinned 24px from the right
-   viewport edge, 22px down. Color rides the theme tokens so it adapts to the
+/* Standard cross-project home affordance: text link 24px from the right
+   viewport edge, 22px down — same spot as the apex pages' .topbar, but in
+   flow (its own strip above the masthead) so it can never sit on the title
+   or the season picker. Color rides the theme tokens so it adapts to the
    navy/light backgrounds. Keep in sync with jeremyperonto.com pages. */
-.home-link{position:absolute;top:22px;right:24px;z-index:9999;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:.78rem;letter-spacing:.02em;color:var(--ink-dim);text-decoration:none;transition:color .2s}
+.site-topbar{display:flex;justify-content:flex-end;padding:22px 24px 0}
+.home-link{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:.78rem;letter-spacing:.02em;color:var(--ink-dim);text-decoration:none;transition:color .2s}
 .home-link:hover{color:var(--accent-ink)}
 .modal-overlay{position:fixed;inset:0;z-index:10000;background:var(--scrim);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:grid;place-items:center;padding:20px}
 .modal-panel{position:relative;background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 24px;box-shadow:var(--shadow);text-align:left}
@@ -863,7 +866,7 @@ footer a:hover{color:var(--accent-ink);border-color:var(--accent-ink)}
 .info-row{grid-template-columns:1fr}
 .wrap{padding:0 12px}
 .body{padding:var(--sp-2) 12px 0}
-.hdr{padding:var(--sp-3) 0 var(--sp-2)}
+.hdr{padding:var(--sp-2) 0 var(--sp-2)}
 .hdr .wrap{gap:var(--sp-2)}
 .hdr-right{gap:var(--sp-2);width:100%;justify-content:space-between}
 .yr-sel{padding:2px 10px}
@@ -1610,6 +1613,12 @@ function App() {
   return (
     <div className="root">
       <style>{CSS}</style>
+
+      {/* Standard home affordance — top-right, in flow above the masthead */}
+      <div className="site-topbar">
+        <a className="home-link" href="https://jeremyperonto.com">jeremyperonto.com →</a>
+      </div>
+
       <header className="hdr">
         <div className="wrap">
           <div>
@@ -1685,9 +1694,6 @@ function App() {
           </div>
         )}
       </div>
-
-      {/* Standard home affordance — top-right */}
-      <a className="home-link" href="https://jeremyperonto.com">jeremyperonto.com →</a>
 
       <footer>
         <div className="wrap">
